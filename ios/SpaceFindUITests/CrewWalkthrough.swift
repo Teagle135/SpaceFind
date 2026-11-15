@@ -29,6 +29,9 @@ final class CrewWalkthrough: XCTestCase {
         if environment["SPACEFIND_TEST_SECOND_PHONE"] != "1" {
             let select = app.buttons["confirm-" + chosen.uppercased()]
             XCTAssertTrue(select.waitForExistence(timeout: 6), app.debugDescription)
+            XCTAssertEqual(app.buttons.matching(
+                NSPredicate(format: "identifier BEGINSWITH %@", "confirm-")
+            ).count, 2)
             select.tap()
         }
         let edit = app.buttons["update-location"]
