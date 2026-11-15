@@ -81,6 +81,7 @@ def _normalize_change(body):
         "confirm": {"id", "itemID", "kind", "observedIDs", "chosenID"},
         "reportMissing": {"id", "itemID", "kind", "label", "location", "photo"},
         "markFound": {"id", "itemID", "kind", "location"},
+        "rename": {"id", "itemID", "kind", "label"},
     }.get(kind)
     if fields is None or set(body) - fields:
         raise HTTPProblem(400, "invalid change")
@@ -123,6 +124,8 @@ def _normalize_change(body):
         change.update(observedIDs=sorted(observed), chosenID=chosen)
     elif kind == "markFound":
         change["location"] = _nonblank(body["location"], "location")
+    elif kind == "rename":
+        change["label"] = _nonblank(body["label"], "label")
     if "photo" in change:
         change["photo"] = base64.b64encode(change["photo"]).decode("ascii")
     return change
@@ -308,7 +311,7 @@ def _change(db_path, body):
             )
             parent_id = None
             location, photo = change["location"], base64.b64decode(change["photo"])
-        elif change["kind"] in {"move", "confirm"}:
+        elif change["kind"] in {"move", "confirm", "rename"}:
             if not db.execute("SELECT 1 FROM items WHERE id=?", (item_id,)).fetchone():
                 raise HTTPProblem(400, "unknown item")
             if change["kind"] == "move":
@@ -324,9 +327,7 @@ def _change(db_path, body):
                         (parent_id,),
                     )
                 location, photo = change["location"], base64.b64decode(change["photo"])
-            else:
-                parent_id = None
-                location = photo = None
+            elif change["kind"] == "confirm":
                 for report_id in change["observedIDs"]:
                     report = db.execute(
                         "SELECT item_id FROM reports WHERE id=?", (report_id,)
@@ -346,6 +347,8 @@ def _change(db_path, body):
                     "WHERE item_id=? AND active=1 AND id<>?",
                     (item_id, change["chosenID"]),
                 )
+            else:
+                db.execute("UPDATE items SET label=? WHERE id=?", (change["label"], item_id))
         elif change["kind"] == "reportMissing":
             if item_id == change["id"] or db.execute(
                 "SELECT 1 FROM items WHERE id=? UNION SELECT 1 FROM reports WHERE id=? "
