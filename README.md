@@ -20,6 +20,12 @@ The service prints a pairing string. Share the full string privately with the tw
 2. Connect an iPhone, enable Developer Mode if prompted, select it as the run destination, and run the SpaceFind scheme. Repeat for the second iPhone. Use an Xcode version that supports running on each phone. The app's deployment target is iOS 16.
 3. Open SpaceFind, paste the laptop's pairing string, and tap **Join inventory**. Allow local network access when prompted. Both phones now use the same database.
 
+## Report a missing item
+
+Open **Lost items** and choose **Report a missing item**. Enter its name and where it was last seen. You can attach a photo even if the item has never been in inventory. When someone finds it, any joined crew member can open the report, enter where it was found, and choose **Mark as found**. The closed report keeps both locations.
+
+Offline reports show **Waiting to sync**. If two members mark the same report found while disconnected, both phones show the first found location the laptop accepts. For an existing crew, restart the updated laptop service using the same data directory before updating the phones.
+
 ## Rehearse with a wrench
 
 1. Keep Wi-Fi running and disconnect its internet uplink. Join both phones. On phone A take or select a wrench photo, add the label “Wrench,” an optional description, and “blue pouch beside the workbench.” Find it on phone B by part of the label or location.
