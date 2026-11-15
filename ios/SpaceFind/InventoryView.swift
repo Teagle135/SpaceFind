@@ -8,7 +8,9 @@ struct InventoryView: View {
     private var hasQuery: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
-        let results = inventory.search(query)
+        let results = inventory.search(query).filter { item in
+            !item.reports.contains { RadarPoint(trialLocation: $0.location) != nil }
+        }
 
         NavigationStack {
             List {
