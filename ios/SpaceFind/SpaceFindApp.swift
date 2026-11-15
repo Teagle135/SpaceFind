@@ -155,6 +155,7 @@ private struct CrewRoot: View {
 
 private struct CrewWorkspace: View {
     @ObservedObject var inventory: Inventory
+    @StateObject private var radarTracker = RadarTracker()
 
     private var activeNotice: (id: UUID, name: String, location: String)? {
         guard let id = inventory.closureNotices.keys.sorted(by: { $0.uuidString < $1.uuidString }).first,
@@ -185,8 +186,12 @@ private struct CrewWorkspace: View {
 
                 LostItemsView(inventory: inventory)
                     .tabItem { Label("Lost items", systemImage: "magnifyingglass") }
+
+                RadarTrialView(inventory: inventory, tracker: radarTracker)
+                    .tabItem { Label("Radar", systemImage: "scope") }
             }
         }
+        .onDisappear { radarTracker.stop() }
     }
 }
 

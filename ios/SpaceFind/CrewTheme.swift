@@ -24,3 +24,17 @@ enum CrewTheme {
             : UIColor(red: 220 / 255, green: 227 / 255, blue: 221 / 255, alpha: 1)
     })
 }
+
+struct CrewWordmark: View {
+    var body: some View {
+        HStack(spacing: 5) {
+            Text("//")
+                .font(.system(size: 10, weight: .bold))
+                .accessibilityHidden(true)
+            Text("SPACEFIND")
+                .font(.caption2.weight(.bold))
+                .tracking(1.2)
+        }
+        .foregroundStyle(CrewTheme.accent)
+    }
+}

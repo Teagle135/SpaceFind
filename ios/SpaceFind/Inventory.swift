@@ -109,7 +109,8 @@ final class Inventory: ObservableObject {
         closureNotices = state.closureNotices
     }
 
-    func create(label: String, description: String, location: String, photo: Data) throws {
+    @discardableResult
+    func create(label: String, description: String, location: String, photo: Data) throws -> UUID {
         guard Self.isPresent(label), Self.isPresent(location), (1...2 * 1024 * 1024).contains(photo.count) else {
             throw InventoryError.invalidRecord
         }
@@ -117,6 +118,7 @@ final class Inventory: ObservableObject {
                             description: description, parentID: nil, location: location, photo: photo,
                             observedIDs: nil, chosenID: nil)
         try enqueue(change)
+        return change.itemID
     }
 
     func move(itemID: UUID, parentID: UUID, location: String, photo: Data) throws {

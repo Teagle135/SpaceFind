@@ -598,7 +598,7 @@ struct PhotoThumbnail: View {
     }
 }
 
-private enum PhotoImage {
+enum PhotoImage {
     static let maximumBytes = 2 * 1024 * 1024
 
     static func normalizedJPEG(from data: Data) -> Data? {

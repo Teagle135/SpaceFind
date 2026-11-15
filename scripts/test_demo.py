@@ -47,7 +47,12 @@ def seed_walkthrough(pairing, folder):
     post("/changes", dict(id=str(uuid4()), itemID=lost_id, kind="reportMissing",
                           label="Walkthrough flashlight", location="tool drawer",
                           photo=base64.b64encode(jpeg.read_bytes()).decode()))
-    return item, chosen, lost_id
+    radar_id = str(uuid4())
+    post("/changes", dict(id=str(uuid4()), itemID=radar_id, kind="create",
+                          label="Radar walk fixture", description="Radar trial target",
+                          location="spacefind-radar-v1 1.5 -2.0",
+                          photo=base64.b64encode((folder / "swatch.jpg").read_bytes()).decode()))
+    return item, chosen, lost_id, radar_id
 
 
 def run():
@@ -60,7 +65,7 @@ def run():
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            item, chosen, lost_id = seed_walkthrough(server.pairing, folder)
+            item, chosen, lost_id, radar_item = seed_walkthrough(server.pairing, folder)
             offline_test = "SpaceFindUITests/CrewWalkthrough/testReadSharedPhotoWithLaptopOffline"
             for index, device in enumerate(args.simulators):
                 subprocess.run(["xcrun", "simctl", "bootstatus", device, "-b"], check=True)
@@ -68,6 +73,7 @@ def run():
                 env = dict(os.environ, TEST_RUNNER_SPACEFIND_TEST_PAIRING=server.pairing,
                            TEST_RUNNER_SPACEFIND_TEST_ITEM=item,
                            TEST_RUNNER_SPACEFIND_TEST_CHOSEN=chosen,
+                           TEST_RUNNER_SPACEFIND_TEST_RADAR_ITEM=radar_item,
                            TEST_RUNNER_SPACEFIND_TEST_SECOND_PHONE=str(index))
                 command = ["xcodebuild", "test", "-project", "ios/SpaceFind.xcodeproj",
                            "-scheme", "SpaceFind", "-parallel-testing-enabled", "NO",
@@ -75,6 +81,7 @@ def run():
                 selection = ["-only-testing:SpaceFindUITests"] if index else []
                 subprocess.run(command + selection + ["-skip-testing:" + offline_test],
                                cwd=ROOT, env=env, check=True)
+
         finally:
             server.shutdown()
             thread.join()

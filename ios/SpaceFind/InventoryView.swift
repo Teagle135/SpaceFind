@@ -8,7 +8,7 @@ struct InventoryView: View {
     private var hasQuery: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
-        let results = inventory.search(query)
+        let results = inventory.search(query).filter { !$0.isRadarTarget }
 
         NavigationStack {
             List {
@@ -65,15 +65,7 @@ struct InventoryView: View {
 
     private var inventoryHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Text("//")
-                    .font(.system(size: 10, weight: .bold))
-                    .accessibilityHidden(true)
-                Text("SPACEFIND")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.2)
-            }
-            .foregroundStyle(CrewTheme.accent)
+            CrewWordmark()
 
             HStack {
                 Text("Inventory")

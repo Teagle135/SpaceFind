@@ -4,6 +4,8 @@
 <dict>
     <key>NSLocalNetworkUsageDescription</key>
     <string>Connect to the crew’s laptop to share item photos and locations over Wi-Fi.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>Estimate your walking position from the MacBook so Radar can guide you back to a photo spot.</string>
     <key>NSCameraUsageDescription</key>
     <string>Photograph an item or its storage location for the crew inventory.</string>
 </dict>
