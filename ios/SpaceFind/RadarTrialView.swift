@@ -354,7 +354,8 @@ private struct RadarInventoryList: View {
             }
         }
         .listStyle(.plain)
-        .searchable(text: $query, prompt: "Search inventory")
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: "Search inventory")
         .scrollContentBackground(.hidden)
         .background(CrewTheme.surface)
         .navigationTitle("Find inventory item")
