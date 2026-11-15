@@ -26,6 +26,10 @@ Open **Lost items** and choose **Report a missing item**. Enter its name and whe
 
 Offline reports show **Waiting to sync**. If two members mark the same report found while disconnected, both phones show the first found location the laptop accepts. For an existing crew, restart the updated laptop service using the same data directory before updating the phones.
 
+## Rename an item
+
+Open the item, tap **Rename item**, enter the new label, and tap **Save**. Its photo, description, and recorded location stay with the item. You can search for the new label immediately on that phone. If you rename it offline, it shows **Waiting to sync**. Once both phones can reach the laptop with SpaceFind open, the other phone can find it by the new label too. If both crew members rename the same item, the last rename the laptop accepts sets the shared label.
+
 ## Rehearse with a wrench
 
 1. Keep Wi-Fi running and disconnect its internet uplink. Join both phones. On phone A take or select a wrench photo, add the label “Wrench,” an optional description, and “blue pouch beside the workbench.” Find it on phone B by part of the label or location.
