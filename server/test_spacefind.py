@@ -1,6 +1,7 @@
 import base64
 import http.client
 import json
+import sqlite3
 import socket
 import ssl
 import tempfile
@@ -95,6 +96,28 @@ class SpaceFindTests(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         return result["items"]
+
+    def snapshot(self, running=None, token=None):
+        status, result = (running or self.running).request(
+            "GET", "/inventory", token=token
+        )
+        self.assertEqual(status, 200)
+        return result
+
+    def report_missing(self, token, name="Torque wrench", location="beside the workbench", photo=None,
+                       report_id=None, change_id=None):
+        change = {
+            "id": change_id or str(uuid.uuid4()),
+            "itemID": report_id or str(uuid.uuid4()),
+            "kind": "reportMissing",
+            "label": name,
+            "location": location,
+        }
+        if photo is not None:
+            change["photo"] = base64.b64encode(photo).decode()
+        status, result = self.running.request("POST", "/changes", change, token)
+        self.assertEqual((status, result), (200, {}))
+        return change
 
     def reports(self, item_id, running=None, token=None):
         item = next(item for item in self.inventory(running, token) if item["id"] == item_id)
@@ -232,6 +255,162 @@ class SpaceFindTests(unittest.TestCase):
 
         malformed = dict(blank, id=str(uuid.uuid4()), kind=[])
         self.assertEqual(self.running.request("POST", "/changes", malformed, token)[0], 400)
+
+    def test_lost_report_lifecycle_and_replay(self):
+        client_a = self.join()
+        client_b = self.join()
+        self.create_item(client_a)
+        original_items = self.inventory(token=client_a)
+        jpeg = b"\xff\xd8\xffcrew-photo\xff\xd9"
+        first = self.report_missing(client_a, photo=jpeg)
+        sibling = self.report_missing(client_b)
+        close = {
+            "id": str(uuid.uuid4()),
+            "itemID": first["itemID"],
+            "kind": "markFound",
+            "location": "locker 2",
+        }
+        self.assertEqual(self.running.request("POST", "/changes", close, client_b), (200, {}))
+
+        snapshot = self.snapshot(token=client_a)
+        self.assertEqual(snapshot["items"], original_items)
+        lost = {report["id"]: report for report in snapshot["lostReports"]}
+        self.assertEqual(
+            (lost[first["itemID"]]["lastSeen"], lost[first["itemID"]]["foundAt"]),
+            ("beside the workbench", "locker 2"),
+        )
+        self.assertEqual(base64.b64decode(lost[first["itemID"]]["photo"]), jpeg)
+        self.assertEqual(
+            lost[sibling["itemID"]],
+            {"id": sibling["itemID"], "name": "Torque wrench", "lastSeen": "beside the workbench"},
+        )
+        self.assertEqual(self.running.request("POST", "/changes", first, client_a), (200, {}))
+        self.assertEqual(self.running.request("POST", "/changes", close, client_b), (200, {}))
+
+    def test_first_closure_wins(self):
+        client_a = self.join()
+        client_b = self.join()
+        report = self.report_missing(client_a, photo=None)
+        first_close = {
+            "id": str(uuid.uuid4()), "itemID": report["itemID"],
+            "kind": "markFound", "location": "locker 2",
+        }
+        second_close = {
+            "id": str(uuid.uuid4()), "itemID": report["itemID"],
+            "kind": "markFound", "location": "loading bay",
+        }
+        results = [
+            self.running.request("POST", "/changes", first_close, client_a),
+            self.running.request("POST", "/changes", second_close, client_b),
+        ]
+        self.assertEqual([status for status, _ in results].count(200), 1)
+        self.assertEqual([status for status, _ in results].count(409), 1)
+        self.assertEqual(results[0], (200, {}))
+        self.assertEqual(results[1], (409, {"code": "alreadyFound", "foundAt": "locker 2"}))
+        self.assertEqual(
+            {entry["id"]: entry for entry in self.snapshot(token=client_b)["lostReports"]}[report["itemID"]]["foundAt"],
+            "locker 2",
+        )
+        self.assertEqual(self.running.request("POST", "/changes", first_close, client_a), (200, {}))
+        altered_replay = dict(first_close, location="different locker")
+        status, body = self.running.request("POST", "/changes", altered_replay, client_a)
+        self.assertEqual(status, 409)
+        self.assertNotIn("code", body)
+
+    def test_lost_report_validation_and_authorization(self):
+        token = self.join()
+        report_id = str(uuid.uuid4())
+        valid = {
+            "id": str(uuid.uuid4()), "itemID": report_id, "kind": "reportMissing",
+            "label": "Torque wrench", "location": "Bench",
+        }
+        self.assertEqual(self.running.request("POST", "/changes", valid)[0], 401)
+        self.assertEqual(self.running.request("GET", "/inventory")[0], 401)
+
+        unknown = {
+            "id": str(uuid.uuid4()), "itemID": str(uuid.uuid4()),
+            "kind": "markFound", "location": "Locker",
+        }
+        self.assertEqual(self.running.request("POST", "/changes", unknown, token)[0], 400)
+        blank_name = dict(valid, id=str(uuid.uuid4()), label=" \t")
+        blank_location = dict(valid, id=str(uuid.uuid4()), location="  ")
+        self.assertEqual(self.running.request("POST", "/changes", blank_name, token)[0], 400)
+        self.assertEqual(self.running.request("POST", "/changes", blank_location, token)[0], 400)
+
+        report = self.report_missing(token)
+        blank_found_at = {
+            "id": str(uuid.uuid4()), "itemID": report["itemID"],
+            "kind": "markFound", "location": " \n",
+        }
+        self.assertEqual(self.running.request("POST", "/changes", blank_found_at, token)[0], 400)
+        malformed_photo = dict(valid, id=str(uuid.uuid4()), itemID=str(uuid.uuid4()), photo="not base64!")
+        self.assertEqual(self.running.request("POST", "/changes", malformed_photo, token)[0], 400)
+        oversized_photo = dict(valid, id=str(uuid.uuid4()), itemID=str(uuid.uuid4()))
+        oversized_photo["photo"] = base64.b64encode(
+            b"\xff\xd8" + b"x" * (2 * 1024 * 1024) + b"\xff\xd9"
+        ).decode()
+        self.assertEqual(self.running.request("POST", "/changes", oversized_photo, token)[0], 400)
+        self.assertNotIn(report["itemID"], {entry["id"] for entry in self.snapshot(token=token)["lostReports"] if "foundAt" in entry})
+
+    def test_lost_report_ids_do_not_collide_with_inventory_or_change_ids(self):
+        token = self.join()
+        item_id, change_id, _ = self.create_item(token)
+        for field, reserved_id in (("itemID", item_id), ("itemID", change_id), ("id", item_id), ("id", change_id)):
+            collision = {
+                "id": str(uuid.uuid4()), "itemID": str(uuid.uuid4()), "kind": "reportMissing",
+                "label": "Torque wrench", "location": "Bench",
+            }
+            collision[field] = reserved_id
+            self.assertEqual(self.running.request("POST", "/changes", collision, token)[0], 409)
+
+        report_id = str(uuid.uuid4())
+        same_id = {
+            "id": report_id, "itemID": report_id, "kind": "reportMissing",
+            "label": "Torque wrench", "location": "Bench",
+        }
+        self.assertEqual(self.running.request("POST", "/changes", same_id, token)[0], 409)
+        report = self.report_missing(token)
+        self.assertEqual(
+            self.running.request(
+                "POST", "/changes",
+                dict(report, id=str(uuid.uuid4()), label="Different search"), token,
+            )[0],
+            409,
+        )
+        inventory_id_collision = {
+            "id": str(uuid.uuid4()), "itemID": report["itemID"], "kind": "create",
+            "label": "Torque wrench", "description": "", "location": "Bench",
+            "photo": base64.b64encode(JPEG).decode(),
+        }
+        self.assertEqual(self.running.request("POST", "/changes", inventory_id_collision, token)[0], 409)
+        change_id_collision = {
+            "id": report["itemID"], "itemID": str(uuid.uuid4()), "kind": "markFound",
+            "location": "Locker",
+        }
+        self.assertEqual(self.running.request("POST", "/changes", change_id_collision, token)[0], 409)
+
+    def test_upgrade_and_restart_preserve_inventory_and_lost_reports(self):
+        token = self.join()
+        item_id, _, _ = self.create_item(token)
+        invite = json.loads(self.running.server.pairing)["invite"]
+        self.running.close()
+        with sqlite3.connect(self.data_dir / "spacefind.sqlite3") as db:
+            db.execute("DROP TABLE IF EXISTS lost_reports")
+        self.running = RunningServer(self.data_dir)
+        self.assertEqual(json.loads(self.running.server.pairing)["invite"], invite)
+        original = self.inventory(self.running, token)[0]
+        self.assertEqual(original["id"], item_id)
+        self.assertEqual(base64.b64decode(original["reports"][0]["photo"]), JPEG)
+
+        report = self.report_missing(token, name="Torque wrench", photo=JPEG)
+        self.running.close()
+        self.running = RunningServer(self.data_dir)
+        snapshot = self.snapshot(self.running, token)
+        self.assertEqual(snapshot["items"], [original])
+        self.assertEqual(snapshot["lostReports"], [{
+            "id": report["itemID"], "name": "Torque wrench",
+            "lastSeen": "beside the workbench", "photo": base64.b64encode(JPEG).decode(),
+        }])
 
     def test_does_not_replace_an_incomplete_tls_identity(self):
         cert_path = self.data_dir / "server-cert.pem"
