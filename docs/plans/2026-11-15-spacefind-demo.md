@@ -58,6 +58,7 @@
 ### Task 4 — Verify the two-iPhone demo
 
 - [x] Document the exact laptop start command, generation and reuse of its local TLS identity, how to find the laptop's address, where the lead sees pairing information, and how to sign and install on each demo phone.
-- [ ] Onboard both physical iPhones over Wi-Fi with internet disconnected.
+- [x] Install, launch, and join the shared laptop inventory on both physical iPhones.
+- [ ] Repeat the physical walkthrough with the Wi-Fi network’s internet uplink disconnected.
 - [ ] Run all five [design acceptance checks](../specs/2026-11-15-spacefind-design.md#demo-acceptance-checks), including an actual camera photo, a replacement photo, an offline app relaunch, conflicting moves, and recovery from the laptop after a fresh install. Record the devices, iOS versions and observed results. Keep any check awaiting hardware explicitly pending.
 - [x] Run the Python and Xcode suites, review the final diff against the design, and push the verified milestone to GitHub.

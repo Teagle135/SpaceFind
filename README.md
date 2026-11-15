@@ -41,6 +41,8 @@ The rehearsal starts a disposable laptop database on loopback, adds a test image
 
 ### Verification on November 15, 2026
 
-- Laptop suite: 8 tests passed, including database restart, replaying a change after a lost acknowledgment, and stale conflict confirmation.
+- Laptop tests cover IPv4 and IPv6 reachability, database restart, replaying a change after a lost acknowledgment, and stale conflict confirmation.
 - Xcode 26.0.1, iOS 26.0 simulator runtime: 7 unit and integration tests passed. Both UI tests passed on each of the iPhone 17 Pro and iPhone 17 simulators. They joined the same laptop service, searched the inventory, checked the confirmed location, canceled an edit, and saved a library photo.
-- An unsigned Release build for a generic iPhone succeeded. Signing, camera capture, and the internet-disconnected Wi-Fi walkthrough on the two physical phones (reported iOS 27.0.1 and 26.6.2) are pending.
+- Signed SpaceFind 1.0 ran on an iPhone 16 (iOS 26.6.2, USB development connection) and an iPhone 14 Plus (iOS 27.0.1, wireless development connection). All 7 app tests passed on each phone against the laptop’s local hostname.
+- Both phones passed the inventory UI walkthrough. The iPhone 16 confirmed “locker 2” for the test wrench. The iPhone 14 Plus displayed that choice. Both phones’ saved copies matched the laptop’s location and photo bytes, with zero pending edits.
+- The physical walkthrough still needs a crew member to capture a camera photo and perform the Wi-Fi disconnection steps. A fresh-install recovery after syncing a physical phone also remains to be rehearsed.

@@ -1,6 +1,7 @@
 import base64
 import http.client
 import json
+import socket
 import ssl
 import tempfile
 import threading
@@ -17,13 +18,13 @@ JPEG = b"\xff\xd8\xff\xd9"
 
 
 class RunningServer:
-    def __init__(self, data_dir):
-        self.server = spacefind.create_server(
-            data_dir, host="127.0.0.1", port=0, host_name="localhost"
-        )
+    def __init__(self, data_dir, host="127.0.0.1"):
+        options = {"port": 0, "host_name": "localhost"}
+        if host is not None:
+            options["host"] = host
+        self.server = spacefind.create_server(data_dir, **options)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
-        self.url = f"https://127.0.0.1:{self.server.server_port}"
         self.context = ssl._create_unverified_context()
 
     def close(self):
@@ -31,13 +32,15 @@ class RunningServer:
         self.server.server_close()
         self.thread.join(timeout=2)
 
-    def request(self, method, path, body=None, token=None):
+    def request(self, method, path, body=None, token=None, host="127.0.0.1"):
         data = None if body is None else json.dumps(body).encode()
         headers = {"Content-Type": "application/json"} if data is not None else {}
         if token:
             headers["Authorization"] = f"Bearer {token}"
+        url_host = f"[{host}]" if ":" in host else host
         request = urllib.request.Request(
-            self.url + path, data=data, headers=headers, method=method
+            f"https://{url_host}:{self.server.server_port}{path}",
+            data=data, headers=headers, method=method
         )
         try:
             response = urllib.request.urlopen(
@@ -239,6 +242,34 @@ class SpaceFindTests(unittest.TestCase):
             spacefind.create_server(self.data_dir, host="127.0.0.1", port=0, host_name="localhost")
         self.assertEqual(cert_path.read_bytes(), cert_before)
         self.assertFalse(key_path.exists())
+
+    def test_default_server_accepts_https_over_ipv4_and_ipv6_loopback(self):
+        supports_dual_stack = socket.has_dualstack_ipv6()
+        running = RunningServer(self.data_dir / "default", host=None)
+        try:
+            hosts = ["127.0.0.1"] + (["::1"] if supports_dual_stack else [])
+            for host in hosts:
+                self.assertEqual(running.request("GET", "/missing", host=host)[0], 404)
+        finally:
+            running.close()
+
+    def test_explicit_ipv4_wildcard_does_not_enable_ipv6(self):
+        if not socket.has_dualstack_ipv6():
+            self.skipTest("platform does not support dual-stack IPv6")
+        running = RunningServer(self.data_dir / "ipv4", host="0.0.0.0")
+        try:
+            self.assertEqual(running.request("GET", "/missing")[0], 404)
+
+            connection = http.client.HTTPSConnection(
+                "::1", running.server.server_port, context=running.context, timeout=5
+            )
+            try:
+                with self.assertRaises(ConnectionRefusedError):
+                    connection.connect()
+            finally:
+                connection.close()
+        finally:
+            running.close()
 
     def test_rejects_request_over_three_mebibytes(self):
         token = self.join()
