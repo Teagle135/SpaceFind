@@ -1,0 +1,328 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 77;
+	objects = {
+		E362FFF3E6DDC87B8910B412 /* Main group */ = {
+			isa = PBXGroup;
+			children = (80DE08F2395DBC946C074B21 /* SpaceFind */, 39D7EEEFDC6524C681538363 /* SpaceFindTests */, EC4C074A001BC66C751CBFC1 /* SpaceFindUITests */, 591FD60330C59DAE09CE7BC7 /* Products */,);
+			sourceTree = "<group>";
+		};
+		591FD60330C59DAE09CE7BC7 /* Products */ = {
+			isa = PBXGroup;
+			children = (7BDC846A130B3BBB4A7A2199 /* SpaceFind.app */, 16B4952592F0EE66058C1B87 /* SpaceFindTests.xctest */, 06D87FE387B1942000169CD1 /* SpaceFindUITests.xctest */,);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		617D7A29EF517A513870BE03 /* Project Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		15A86A2EE725AE76DA0DA668 /* Project Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		0110D0CAAF64146C3C532E47 /* Project configs */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (617D7A29EF517A513870BE03 /* Project Debug */, 15A86A2EE725AE76DA0DA668 /* Project Release */,);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1D7D231F1C6AECF320794B33 /* SpaceFind Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppInfo.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.spacefind.demo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1";
+			};
+			name = Debug;
+		};
+		F5D92CCACE85D43E877FE552 /* SpaceFind Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AppInfo.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.spacefind.demo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1";
+			};
+			name = Release;
+		};
+		BBC9EDC594D96E52523BF455 /* SpaceFind configs */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (1D7D231F1C6AECF320794B33 /* SpaceFind Debug */, F5D92CCACE85D43E877FE552 /* SpaceFind Release */,);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D527B605F4E6787C5091E297 /* SpaceFindTests Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.spacefind.demoTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpaceFind.app/SpaceFind";
+			};
+			name = Debug;
+		};
+		C9AC0BFE0BA205C3637C2973 /* SpaceFindTests Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.spacefind.demoTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpaceFind.app/SpaceFind";
+			};
+			name = Release;
+		};
+		1F5B3713C4081822B860FB8E /* SpaceFindTests configs */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (D527B605F4E6787C5091E297 /* SpaceFindTests Debug */, C9AC0BFE0BA205C3637C2973 /* SpaceFindTests Release */,);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0B020C01DA4793CA5C7F740F /* SpaceFindUITests Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.spacefind.demoUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1";
+				TEST_TARGET_NAME = SpaceFind;
+			};
+			name = Debug;
+		};
+		F8900FD679386133C6C470B3 /* SpaceFindUITests Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.spacefind.demoUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1";
+				TEST_TARGET_NAME = SpaceFind;
+			};
+			name = Release;
+		};
+		0407C22893207CC3333F9D03 /* SpaceFindUITests configs */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (0B020C01DA4793CA5C7F740F /* SpaceFindUITests Debug */, F8900FD679386133C6C470B3 /* SpaceFindUITests Release */,);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		80DE08F2395DBC946C074B21 /* SpaceFind */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SpaceFind;
+			sourceTree = "<group>";
+		};
+		7BDC846A130B3BBB4A7A2199 /* SpaceFind.app */ = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.application;
+			path = SpaceFind.app;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		9660A4DF5F129D9FEDCEEEA1 /* SpaceFind Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9E9DE087BEA72329C0C6CF39 /* SpaceFind Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		46454E29249EA5220AD5F33A /* SpaceFind Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3DFD285755DAC24EAB66606E /* SpaceFind target */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BBC9EDC594D96E52523BF455 /* SpaceFind configs */;
+			buildPhases = (9660A4DF5F129D9FEDCEEEA1 /* SpaceFind Sources */, 9E9DE087BEA72329C0C6CF39 /* SpaceFind Frameworks */, 46454E29249EA5220AD5F33A /* SpaceFind Resources */,);
+			buildRules = ();
+			dependencies = ();
+			fileSystemSynchronizedGroups = (80DE08F2395DBC946C074B21 /* SpaceFind */,);
+			name = SpaceFind;
+			productName = SpaceFind;
+			productReference = 7BDC846A130B3BBB4A7A2199 /* SpaceFind.app */;
+			productType = "com.apple.product-type.application";
+		};
+		39D7EEEFDC6524C681538363 /* SpaceFindTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SpaceFindTests;
+			sourceTree = "<group>";
+		};
+		16B4952592F0EE66058C1B87 /* SpaceFindTests.xctest */ = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.cfbundle;
+			path = SpaceFindTests.xctest;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		980D03C8639C72FF4CB59211 /* SpaceFindTests Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		12DC58DD115EF19D9EE8F24A /* SpaceFindTests Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4701310269F17D81E49E47C0 /* SpaceFindTests Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		768627D7F10DDACF13A3D2E5 /* SpaceFindTests proxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3DF3EC704AC9D68CAA37DF69 /* Project */;
+			proxyType = 1;
+			remoteGlobalIDString = 3DFD285755DAC24EAB66606E;
+			remoteInfo = SpaceFind;
+		};
+		D600C65DFA55B3AA4506827D /* SpaceFindTests dependency */ = {
+			isa = PBXTargetDependency;
+			target = 3DFD285755DAC24EAB66606E /* SpaceFind target */;
+			targetProxy = 768627D7F10DDACF13A3D2E5 /* SpaceFindTests proxy */;
+		};
+		D6FFA226FBEB31DD6705CF17 /* SpaceFindTests target */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1F5B3713C4081822B860FB8E /* SpaceFindTests configs */;
+			buildPhases = (980D03C8639C72FF4CB59211 /* SpaceFindTests Sources */, 12DC58DD115EF19D9EE8F24A /* SpaceFindTests Frameworks */, 4701310269F17D81E49E47C0 /* SpaceFindTests Resources */,);
+			buildRules = ();
+			dependencies = (D600C65DFA55B3AA4506827D /* SpaceFindTests dependency */,);
+			fileSystemSynchronizedGroups = (39D7EEEFDC6524C681538363 /* SpaceFindTests */,);
+			name = SpaceFindTests;
+			productName = SpaceFindTests;
+			productReference = 16B4952592F0EE66058C1B87 /* SpaceFindTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		EC4C074A001BC66C751CBFC1 /* SpaceFindUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SpaceFindUITests;
+			sourceTree = "<group>";
+		};
+		06D87FE387B1942000169CD1 /* SpaceFindUITests.xctest */ = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.cfbundle;
+			path = SpaceFindUITests.xctest;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		7B98C7B5D90457F1878946DE /* SpaceFindUITests Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90C8CF2945BF1B8AD4825B44 /* SpaceFindUITests Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FCDC866D90A942085DFCB040 /* SpaceFindUITests Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEE877A155E139DC6EC41129 /* SpaceFindUITests proxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3DF3EC704AC9D68CAA37DF69 /* Project */;
+			proxyType = 1;
+			remoteGlobalIDString = 3DFD285755DAC24EAB66606E;
+			remoteInfo = SpaceFind;
+		};
+		6AAB240D3C58EED0D4EB4636 /* SpaceFindUITests dependency */ = {
+			isa = PBXTargetDependency;
+			target = 3DFD285755DAC24EAB66606E /* SpaceFind target */;
+			targetProxy = BEE877A155E139DC6EC41129 /* SpaceFindUITests proxy */;
+		};
+		A6DEA97FBC6A043B22874840 /* SpaceFindUITests target */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0407C22893207CC3333F9D03 /* SpaceFindUITests configs */;
+			buildPhases = (7B98C7B5D90457F1878946DE /* SpaceFindUITests Sources */, 90C8CF2945BF1B8AD4825B44 /* SpaceFindUITests Frameworks */, FCDC866D90A942085DFCB040 /* SpaceFindUITests Resources */,);
+			buildRules = ();
+			dependencies = (6AAB240D3C58EED0D4EB4636 /* SpaceFindUITests dependency */,);
+			fileSystemSynchronizedGroups = (EC4C074A001BC66C751CBFC1 /* SpaceFindUITests */,);
+			name = SpaceFindUITests;
+			productName = SpaceFindUITests;
+			productReference = 06D87FE387B1942000169CD1 /* SpaceFindUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		3DF3EC704AC9D68CAA37DF69 /* Project */ = {
+			isa = PBXProject;
+			attributes = { BuildIndependentTargetsInParallel = 1; LastUpgradeCheck = 2600; };
+			buildConfigurationList = 0110D0CAAF64146C3C532E47 /* Project configs */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base,);
+			mainGroup = E362FFF3E6DDC87B8910B412 /* Main group */;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 591FD60330C59DAE09CE7BC7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (3DFD285755DAC24EAB66606E /* SpaceFind target */, D6FFA226FBEB31DD6705CF17 /* SpaceFindTests target */, A6DEA97FBC6A043B22874840 /* SpaceFindUITests target */,);
+		};
+	};
+	rootObject = 3DF3EC704AC9D68CAA37DF69 /* Project */;
+}
