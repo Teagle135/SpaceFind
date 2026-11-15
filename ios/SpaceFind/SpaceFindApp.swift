@@ -19,32 +19,32 @@ private struct CrewRoot: View {
     var body: some View {
         Group {
             if let inventory, let service {
-                CrewWorkspace(inventory: inventory)
-                    .safeAreaInset(edge: .bottom) {
-                        if let message {
-                            VStack(spacing: 4) {
-                                Text(message).font(.footnote)
-                                Button("Update connection") { reconnecting = true }
-                            }
-                            .frame(maxWidth: .infinity).padding(8).background(.thinMaterial)
+                VStack(spacing: 0) {
+                    if let message {
+                        VStack(spacing: 4) {
+                            Text(message).font(.footnote)
+                            Button("Update connection") { reconnecting = true }
                         }
+                        .frame(maxWidth: .infinity).padding(8).background(.thinMaterial)
                     }
-                    .task(id: phase) {
-                        guard phase == .active else { return }
-                        while !Task.isCancelled {
-                            do {
-                                try await inventory.sync(using: service)
-                                message = nil
-                            } catch {
-                                if Task.isCancelled { return }
-                                message = (error as? URLError) != nil
-                                    ? "Laptop unreachable. Showing items and lost reports saved on this iPhone."
-                                    : error.localizedDescription
-                            }
-                            do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
+                    CrewWorkspace(inventory: inventory)
+                }
+                .task(id: phase) {
+                    guard phase == .active else { return }
+                    while !Task.isCancelled {
+                        do {
+                            try await inventory.sync(using: service)
+                            message = nil
+                        } catch {
+                            if Task.isCancelled { return }
+                            message = (error as? URLError) != nil
+                                ? "Laptop unreachable. Showing items and lost reports saved on this iPhone."
+                                : error.localizedDescription
                         }
+                        do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
                     }
-                    .id(ObjectIdentifier(service))
+                }
+                .id(ObjectIdentifier(service))
             } else if ready {
                 pairingForm
             } else {
@@ -133,14 +133,7 @@ private struct CrewWorkspace: View {
     }
 
     var body: some View {
-        TabView {
-            InventoryView(inventory: inventory)
-                .tabItem { Label("Inventory", systemImage: "shippingbox") }
-
-            LostItemsView(inventory: inventory)
-                .tabItem { Label("Lost items", systemImage: "magnifyingglass") }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
+        VStack(spacing: 0) {
             if let activeNotice {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("\(activeNotice.name) was already marked found at \(activeNotice.location).")
@@ -154,6 +147,13 @@ private struct CrewWorkspace: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(.thinMaterial)
+            }
+            TabView {
+                InventoryView(inventory: inventory)
+                    .tabItem { Label("Inventory", systemImage: "shippingbox") }
+
+                LostItemsView(inventory: inventory)
+                    .tabItem { Label("Lost items", systemImage: "magnifyingglass") }
             }
         }
     }

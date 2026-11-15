@@ -47,7 +47,7 @@ Run `python3 -m unittest discover -s server -v` from the checkout to test the la
 python3 scripts/test_demo.py FIRST_SIMULATOR_UDID SECOND_SIMULATOR_UDID
 ```
 
-The rehearsal starts a disposable laptop database on loopback, adds a test image to each simulator's library, and exercises the real app and service together. Use the physical walkthrough above to check Wi-Fi reachability, camera capture, and local-network permissions aboard the demo network.
+The rehearsal starts a disposable laptop database on loopback, adds a test image to each simulator's library, and exercises the real app and service together. It then stops the service and checks that a crew member can still open a shared lost report and its photo. Use the physical walkthrough above to check Wi-Fi reachability, camera capture, and local-network permissions aboard the demo network.
 
 ### Verification on November 15, 2026
 

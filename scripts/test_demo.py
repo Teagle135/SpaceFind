@@ -43,7 +43,11 @@ def seed_walkthrough(pairing, folder):
                   {"kind": "create", "label": "Walkthrough wrench", "description": "12 mm"})
         post("/changes", dict(change, itemID=item, id=report, location=location,
                               photo=base64.b64encode(jpeg.read_bytes()).decode()))
-    return item, chosen
+    lost_id = str(uuid4())
+    post("/changes", dict(id=str(uuid4()), itemID=lost_id, kind="reportMissing",
+                          label="Walkthrough flashlight", location="tool drawer",
+                          photo=base64.b64encode(jpeg.read_bytes()).decode()))
+    return item, chosen, lost_id
 
 
 def run():
@@ -56,7 +60,8 @@ def run():
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            item, chosen = seed_walkthrough(server.pairing, folder)
+            item, chosen, lost_id = seed_walkthrough(server.pairing, folder)
+            offline_test = "SpaceFindUITests/CrewWalkthrough/testReadSharedPhotoWithLaptopOffline"
             for index, device in enumerate(args.simulators):
                 subprocess.run(["xcrun", "simctl", "bootstatus", device, "-b"], check=True)
                 subprocess.run(["xcrun", "simctl", "addmedia", device, folder / "swatch.jpg"], check=True)
@@ -67,13 +72,16 @@ def run():
                 command = ["xcodebuild", "test", "-project", "ios/SpaceFind.xcodeproj",
                            "-scheme", "SpaceFind", "-parallel-testing-enabled", "NO",
                            "-destination", "platform=iOS Simulator,id=" + device]
-                if index:
-                    command.append("-only-testing:SpaceFindUITests")
-                subprocess.run(command, cwd=ROOT, env=env, check=True)
+                selection = ["-only-testing:SpaceFindUITests"] if index else []
+                subprocess.run(command + selection + ["-skip-testing:" + offline_test],
+                               cwd=ROOT, env=env, check=True)
         finally:
             server.shutdown()
             thread.join()
             server.server_close()
+        command[1] = "test-without-building"
+        env["TEST_RUNNER_SPACEFIND_OFFLINE_REPORT_ID"] = lost_id
+        subprocess.run(command + ["-only-testing:" + offline_test], cwd=ROOT, env=env, check=True)
 
 
 if __name__ == "__main__":
