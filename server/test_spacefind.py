@@ -139,6 +139,69 @@ class SpaceFindTests(unittest.TestCase):
             base64.b64decode(items[0]["reports"][0]["photo"]), JPEG
         )
 
+    def test_rename_changes_only_target_label_and_retries_do_not_overwrite_newer_rename(self):
+        client_a = self.join()
+        client_b = self.join()
+        target_id, _, _ = self.create_item(client_a)
+        other_id, _, _ = self.create_item(client_b)
+        before = {item["id"]: item for item in self.inventory(token=client_a)}
+        self.assertEqual(before[target_id]["label"], "Wrench")
+        self.assertEqual(before[other_id]["label"], "Wrench")
+
+        older_rename = {
+            "id": str(uuid.uuid4()),
+            "itemID": target_id,
+            "kind": "rename",
+            "label": "Pipe wrench",
+        }
+        newer_rename = {
+            "id": str(uuid.uuid4()),
+            "itemID": target_id,
+            "kind": "rename",
+            "label": "Spanner",
+        }
+        self.assertEqual(self.running.request("POST", "/changes", older_rename, client_a), (200, {}))
+        self.assertEqual(self.running.request("POST", "/changes", newer_rename, client_b), (200, {}))
+
+        after = {item["id"]: item for item in self.inventory(token=client_a)}
+        self.assertEqual(after[target_id]["label"], "Spanner")
+        self.assertEqual(after[target_id]["description"], before[target_id]["description"])
+        self.assertEqual(after[target_id]["reports"], before[target_id]["reports"])
+        self.assertEqual(after[other_id], before[other_id])
+
+        self.assertEqual(self.running.request("POST", "/changes", older_rename, client_a), (200, {}))
+        replayed = {item["id"]: item for item in self.inventory(token=client_b)}
+        self.assertEqual(replayed[target_id]["label"], "Spanner")
+
+    def test_rename_rejects_whitespace_only_label(self):
+        token = self.join()
+        item_id, _, _ = self.create_item(token)
+        rename = {
+            "id": str(uuid.uuid4()),
+            "itemID": item_id,
+            "kind": "rename",
+            "label": "   \t",
+        }
+
+        self.assertEqual(
+            self.running.request("POST", "/changes", rename, token),
+            (400, {"error": "label is required"}),
+        )
+
+    def test_rename_rejects_unknown_item(self):
+        token = self.join()
+        rename = {
+            "id": str(uuid.uuid4()),
+            "itemID": str(uuid.uuid4()),
+            "kind": "rename",
+            "label": "Spanner",
+        }
+
+        self.assertEqual(
+            self.running.request("POST", "/changes", rename, token),
+            (400, {"error": "unknown item"}),
+        )
+
     def test_two_clients_keep_concurrent_moves_and_allow_branch_updates(self):
         client_a = self.join()
         client_b = self.join()

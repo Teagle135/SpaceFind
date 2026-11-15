@@ -20,6 +20,10 @@ The service prints a pairing string. Share the full string privately with the tw
 2. Connect an iPhone, enable Developer Mode if prompted, select it as the run destination, and run the SpaceFind scheme. Repeat for the second iPhone. Use an Xcode version that supports running on each phone. The app's deployment target is iOS 16.
 3. Open SpaceFind, paste the laptop's pairing string, and tap **Join inventory**. Allow local network access when prompted. Both phones now use the same database.
 
+## Rename an item
+
+Open the item, tap **Rename item**, enter the new label, and tap **Save**. Its photo, description, and recorded location stay with the item. You can search for the new label immediately on that phone. If you rename it offline, it shows **Waiting to sync**. Once both phones can reach the laptop with SpaceFind open, the other phone can find it by the new label too. If both crew members rename the same item, the last rename the laptop accepts sets the shared label.
+
 ## Rehearse with a wrench
 
 1. Keep Wi-Fi running and disconnect its internet uplink. Join both phones. On phone A take or select a wrench photo, add the label “Wrench,” an optional description, and “blue pouch beside the workbench.” Find it on phone B by part of the label or location.
