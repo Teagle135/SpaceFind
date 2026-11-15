@@ -61,5 +61,7 @@
 - [x] Install, launch, and join the shared laptop inventory on both physical iPhones.
 - [x] Capture a photo on the iPhone 16 and verify the same photo and location on the laptop and iPhone 14 Plus.
 - [ ] Repeat the physical walkthrough with the Wi-Fi network’s internet uplink disconnected.
-- [ ] Run all five [design acceptance checks](../specs/2026-11-15-spacefind-design.md#demo-acceptance-checks), including an actual camera photo, a replacement photo, an offline app relaunch, conflicting moves, and recovery from the laptop after a fresh install. Record the devices, iOS versions and observed results. Keep any check awaiting hardware explicitly pending.
+- [x] On the disconnected iPhone 16, reopen SpaceFind and confirm “Red Pouch” and **Waiting to sync**. After reconnecting, verify that both phones and the laptop agree.
+- [ ] Make conflicting offline moves on the two physical phones, replacing the photo on one. Reconnect, confirm one report, and verify the chosen photo and location on both phones.
+- [ ] Verify recovery from the laptop after a fresh install on one previously synced phone. Use the [design acceptance checks](../specs/2026-11-15-spacefind-design.md#demo-acceptance-checks) for the walkthrough.
 - [x] Run the Python and Xcode suites, review the final diff against the design, and push the verified milestone to GitHub.
