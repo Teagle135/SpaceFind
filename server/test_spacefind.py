@@ -10,6 +10,7 @@ import unittest
 import urllib.error
 import urllib.request
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import spacefind
@@ -362,20 +363,19 @@ class SpaceFindTests(unittest.TestCase):
             "id": str(uuid.uuid4()), "itemID": report["itemID"],
             "kind": "markFound", "location": "loading bay",
         }
-        results = [
-            self.running.request("POST", "/changes", first_close, client_a),
-            self.running.request("POST", "/changes", second_close, client_b),
-        ]
-        self.assertEqual([status for status, _ in results].count(200), 1)
-        self.assertEqual([status for status, _ in results].count(409), 1)
-        self.assertEqual(results[0], (200, {}))
-        self.assertEqual(results[1], (409, {"code": "alreadyFound", "foundAt": "locker 2"}))
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            requests = [pool.submit(self.running.request, "POST", "/changes", change, client)
+                        for change, client in [(first_close, client_a), (second_close, client_b)]]
+            results = [request.result() for request in requests]
+        self.assertCountEqual([status for status, _ in results], [200, 409])
+        winner = (first_close, second_close)[results.index((200, {}))]
+        self.assertIn((409, {"code": "alreadyFound", "foundAt": winner["location"]}), results)
         self.assertEqual(
             {entry["id"]: entry for entry in self.snapshot(token=client_b)["lostReports"]}[report["itemID"]]["foundAt"],
-            "locker 2",
+            winner["location"],
         )
-        self.assertEqual(self.running.request("POST", "/changes", first_close, client_a), (200, {}))
-        altered_replay = dict(first_close, location="different locker")
+        self.assertEqual(self.running.request("POST", "/changes", winner, client_a), (200, {}))
+        altered_replay = dict(winner, location="different locker")
         status, body = self.running.request("POST", "/changes", altered_replay, client_a)
         self.assertEqual(status, 409)
         self.assertNotIn("code", body)
