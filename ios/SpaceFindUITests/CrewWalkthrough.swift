@@ -120,9 +120,14 @@ final class CrewWalkthrough: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let field = app.secureTextFields["pairing"]
-        if field.waitForExistence(timeout: 3) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            field.exists || app.searchFields.firstMatch.exists
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 20), .completed)
+        if field.exists {
             field.tap()
             field.typeText(pairing)
+            XCTAssertTrue(app.staticTexts["Pairing string"].exists)
             app.buttons["Join inventory"].tap()
         }
         return app
