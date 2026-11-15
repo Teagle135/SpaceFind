@@ -47,7 +47,11 @@ def seed_walkthrough(pairing, folder):
     post("/changes", dict(id=str(uuid4()), itemID=lost_id, kind="reportMissing",
                           label="Walkthrough flashlight", location="tool drawer",
                           photo=base64.b64encode(jpeg.read_bytes()).decode()))
-    return item, chosen, lost_id
+    trial = str(uuid4())
+    post("/changes", dict(kind="create", label="Radar walk fixture", description="",
+                          location="spacefind-radar-v1 -2.125 4.0", photo=base64.b64encode(jpeg.read_bytes()).decode(),
+                          id=str(uuid4()), itemID=trial))
+    return item, chosen, lost_id, trial
 
 
 def run():
@@ -60,7 +64,7 @@ def run():
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            item, chosen, lost_id = seed_walkthrough(server.pairing, folder)
+            item, chosen, lost_id, trial = seed_walkthrough(server.pairing, folder)
             offline_test = "SpaceFindUITests/CrewWalkthrough/testReadSharedPhotoWithLaptopOffline"
             for index, device in enumerate(args.simulators):
                 subprocess.run(["xcrun", "simctl", "bootstatus", device, "-b"], check=True)
@@ -68,6 +72,7 @@ def run():
                 env = dict(os.environ, TEST_RUNNER_SPACEFIND_TEST_PAIRING=server.pairing,
                            TEST_RUNNER_SPACEFIND_TEST_ITEM=item,
                            TEST_RUNNER_SPACEFIND_TEST_CHOSEN=chosen,
+                           TEST_RUNNER_SPACEFIND_TEST_RADAR_ITEM=trial,
                            TEST_RUNNER_SPACEFIND_TEST_SECOND_PHONE=str(index))
                 command = ["xcodebuild", "test", "-project", "ios/SpaceFind.xcodeproj",
                            "-scheme", "SpaceFind", "-parallel-testing-enabled", "NO",

@@ -194,6 +194,7 @@ final class RadarTracker: ObservableObject {
             return
         }
 
+        UIApplication.shared.isIdleTimerDisabled = true
         let wallStart = Date()
         let uptimeStart = ProcessInfo.processInfo.systemUptime
         dateToUptimeOffset = uptimeStart - wallStart.timeIntervalSince1970
@@ -256,6 +257,7 @@ final class RadarTracker: ObservableObject {
     }
 
     private func stopSensors() {
+        UIApplication.shared.isIdleTimerDisabled = false
         authorizationTask?.cancel()
         authorizationTask = nil
         pedometer.stopUpdates()

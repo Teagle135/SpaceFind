@@ -223,7 +223,7 @@ final class CrewWalkthrough: XCTestCase {
         app.launch()
         let field = app.secureTextFields["pairing"]
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            field.exists || app.searchFields.firstMatch.exists
+            field.exists || app.tabBars.buttons["Inventory"].exists
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 20), .completed)
         if field.exists {
@@ -232,6 +232,8 @@ final class CrewWalkthrough: XCTestCase {
             XCTAssertTrue(app.staticTexts["Pairing string"].exists)
             app.buttons["Join inventory"].tap()
         }
+        let inventory = app.tabBars.buttons["Inventory"]
+        if inventory.waitForExistence(timeout: 12) { inventory.tap() }
         return app
     }
 }

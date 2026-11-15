@@ -180,6 +180,9 @@ private struct CrewWorkspace: View {
                 .background(.thinMaterial)
             }
             TabView {
+                RadarTrialView(inventory: inventory)
+                    .tabItem { Label("Radar", systemImage: "scope") }
+
                 InventoryView(inventory: inventory)
                     .tabItem { Label("Inventory", systemImage: "shippingbox") }
 
