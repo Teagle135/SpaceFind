@@ -30,6 +30,8 @@ The inventory belongs to one installation on one iPhone. Store an app-owned copy
 
 The initial version covers capture, local storage, browse, search, and location updates. Accounts, cross-device sync, location history, and live tracking are outside this version. The builder may choose the local database, image sizing, and screen layout. The deployment target must support the user's iPhone. The exact iOS version can be confirmed before selecting version-dependent APIs.
 
+To keep the first release focused, the proposed edit flow covers the location and photo only. Label and description editing and item deletion can be considered in a later release. The app will use standard iPhone backup behavior for its stored records and photos. Recovery after deleting the app or replacing the phone depends on an available device backup.
+
 ## Acceptance check
 
 1. With the phone offline, create a wrench using a photo, a label, a description, and the location “blue pouch beside the workbench.” Relaunch and confirm the entry is present.
