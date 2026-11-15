@@ -3,12 +3,14 @@ import XCTest
 
 private actor LostReportClosureConflict: CrewAPI {
     private let snapshot: CrewSnapshot
+    private(set) var sentIDs: [UUID] = []
 
     init(_ snapshot: CrewSnapshot) { self.snapshot = snapshot }
 
     func fetch() async throws -> CrewSnapshot { snapshot }
 
     func send(_ change: Change) async throws {
+        sentIDs.append(change.id)
         if change.kind == .markFound { throw CrewError.alreadyFound(foundAt: "locker 2") }
     }
 }
@@ -251,7 +253,7 @@ final class InventoryTests: XCTestCase {
         XCTAssertEqual(inventory.pendingChanges.map(\.kind), [.reportMissing, .markFound])
     }
 
-    func testClosureNoticeSurvivesRelaunchUntilDismissed() async throws {
+    func testLosingClosureDrainsLaterWorkAndKeepsNoticeUntilDismissed() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
@@ -259,15 +261,20 @@ final class InventoryTests: XCTestCase {
         let inventory = try Inventory(file: file)
         let reportID = try inventory.reportMissing(name: "Wrench", lastSeen: "Blue pouch", photo: nil)
         try inventory.markFound(reportID: reportID, foundAt: "Tool bag")
-        let snapshot = CrewSnapshot(items: [], lostReports: [LostItemReport(
-            id: reportID, name: "Wrench", lastSeen: "Blue pouch", photo: nil, foundAt: "locker 2"
-        )])
-
-        try await inventory.sync(using: LostReportClosureConflict(snapshot))
+        let cableID = try inventory.reportMissing(name: "Cable", lastSeen: "Hatch", photo: nil)
+        let expectedIDs = inventory.pendingChanges.map(\.id)
+        let crew = LostReportClosureConflict(CrewSnapshot(items: [], lostReports: [
+            LostItemReport(id: reportID, name: "Wrench", lastSeen: "Blue pouch", photo: nil, foundAt: "locker 2"),
+            LostItemReport(id: cableID, name: "Cable", lastSeen: "Hatch", photo: nil, foundAt: nil)
+        ]))
+        try await inventory.sync(using: crew)
         let reopened = try Inventory(file: file)
 
+        let sentIDs = await crew.sentIDs
+        XCTAssertEqual(sentIDs, expectedIDs)
         XCTAssertEqual(reopened.closureNotices, [reportID: "locker 2"])
-        XCTAssertEqual(reopened.lostReports.first?.foundAt, "locker 2")
+        XCTAssertEqual(reopened.lostReports.first { $0.id == reportID }?.foundAt, "locker 2")
+        XCTAssertEqual(reopened.lostReports.first { $0.id == cableID }?.lastSeen, "Hatch")
         XCTAssertTrue(reopened.pendingChanges.isEmpty)
         reopened.dismissClosureNotice(reportID: reportID)
         XCTAssertNil(try Inventory(file: file).closureNotices[reportID])

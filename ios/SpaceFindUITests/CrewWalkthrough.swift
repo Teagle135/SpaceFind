@@ -148,17 +148,16 @@ final class CrewWalkthrough: XCTestCase {
             saveFound.tap()
 
             XCTAssertTrue(app.staticTexts["Found"].waitForExistence(timeout: 10), app.debugDescription)
-            XCTAssertTrue(app.staticTexts["Last seen"].exists, app.debugDescription)
-            XCTAssertTrue(app.staticTexts["beside the workbench"].exists, app.debugDescription)
-            XCTAssertTrue(app.staticTexts["Found at"].exists, app.debugDescription)
-            XCTAssertTrue(app.staticTexts["locker 2"].exists, app.debugDescription)
+            let details = app.descendants(matching: .any)
+            XCTAssertTrue(details["Last seen, beside the workbench"].exists, app.debugDescription)
+            XCTAssertTrue(details["Found at, locker 2"].exists, app.debugDescription)
         } else {
             let add = app.buttons["Report a missing item"].firstMatch
             XCTAssertTrue(add.waitForExistence(timeout: 8), app.debugDescription)
             add.tap()
 
             app.buttons["Choose from Library"].tap()
-            let cancelPicker = app.buttons["Cancel"]
+            let cancelPicker = app.navigationBars["Photos"].buttons["Cancel"]
             XCTAssertTrue(cancelPicker.waitForExistence(timeout: 8), app.debugDescription)
             cancelPicker.tap()
 
