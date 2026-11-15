@@ -19,42 +19,42 @@ private struct CrewRoot: View {
     var body: some View {
         Group {
             if let inventory, let service {
-                CrewWorkspace(inventory: inventory)
-                    .safeAreaInset(edge: .bottom) {
-                        if let message {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Label(message, systemImage: "exclamationmark.circle")
-                                    .font(.footnote)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                Button("Update connection") { reconnecting = true }
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(CrewTheme.accent)
-                                    .frame(minHeight: 44)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundStyle(CrewTheme.ink)
-                            .background(CrewTheme.surface)
-                            .overlay(alignment: .top) { Rectangle().fill(CrewTheme.divider).frame(height: 1) }
+                VStack(spacing: 0) {
+                    if let message {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label(message, systemImage: "exclamationmark.circle")
+                                .font(.footnote)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Button("Update connection") { reconnecting = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(CrewTheme.accent)
+                                .frame(minHeight: 44)
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(CrewTheme.ink)
+                        .background(CrewTheme.surface)
+                        .overlay(alignment: .bottom) { Rectangle().fill(CrewTheme.divider).frame(height: 1) }
                     }
-                    .task(id: phase) {
-                        guard phase == .active else { return }
-                        while !Task.isCancelled {
-                            do {
-                                try await inventory.sync(using: service)
-                                message = nil
-                            } catch {
-                                if Task.isCancelled { return }
-                                message = (error as? URLError) != nil
-                                    ? "Laptop unreachable. Showing items and lost reports saved on this iPhone."
-                                    : error.localizedDescription
-                            }
-                            do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
+                    CrewWorkspace(inventory: inventory)
+                }
+                .task(id: phase) {
+                    guard phase == .active else { return }
+                    while !Task.isCancelled {
+                        do {
+                            try await inventory.sync(using: service)
+                            message = nil
+                        } catch {
+                            if Task.isCancelled { return }
+                            message = (error as? URLError) != nil
+                                ? "Laptop unreachable. Showing items and lost reports saved on this iPhone."
+                                : error.localizedDescription
                         }
+                        do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
                     }
-                    .id(ObjectIdentifier(service))
+                }
+                .id(ObjectIdentifier(service))
             } else if ready {
                 pairingForm
             } else {
