@@ -27,12 +27,12 @@ private actor UnreliableCrew: CrewAPI {
         }
     }
 
-    func fetch() async throws -> [Item] {
+    func fetch() async throws -> CrewSnapshot {
         if let action = beforeNextFetch {
             beforeNextFetch = nil
             try await action()
         }
-        return serverItems
+        return CrewSnapshot(items: serverItems, lostReports: [])
     }
 
     func onNextFetch(_ action: @escaping @MainActor () throws -> Void) {
@@ -40,6 +40,33 @@ private actor UnreliableCrew: CrewAPI {
     }
 
     func sentChangeIDs() -> [UUID] { sentIDs }
+}
+
+private actor InterruptedClosureCrew: CrewAPI {
+    private var report: LostItemReport
+    private(set) var sentIDs: [UUID] = []
+    private var beforeFetch: (@MainActor () throws -> Void)?
+
+    init(report: LostItemReport) { self.report = report }
+
+    func send(_ change: Change) async throws {
+        sentIDs.append(change.id)
+        if sentIDs.count == 1 {
+            report = LostItemReport(id: report.id, name: report.name, lastSeen: report.lastSeen,
+                                    photo: report.photo, foundAt: change.location)
+            throw FakeCrewFailure.droppedAcknowledgment
+        }
+    }
+
+    func onNextFetch(_ action: @escaping @MainActor () throws -> Void) { beforeFetch = action }
+
+    func fetch() async throws -> CrewSnapshot {
+        if let action = beforeFetch {
+            beforeFetch = nil
+            try await action()
+        }
+        return CrewSnapshot(items: [], lostReports: [report])
+    }
 }
 
 private actor StaleConfirmationCrew: CrewAPI {
@@ -56,14 +83,43 @@ private actor StaleConfirmationCrew: CrewAPI {
         if change.kind == .confirm { throw CrewError.staleConfirmation }
     }
 
-    func fetch() async throws -> [Item] {
+    func fetch() async throws -> CrewSnapshot {
         fetchCount += 1
-        return fetchCount == 1 ? initialItems : currentItems
+        return CrewSnapshot(items: fetchCount == 1 ? initialItems : currentItems, lostReports: [])
     }
 }
 
 @MainActor
 final class SyncTests: XCTestCase {
+    func testLostClosureRetryKeepsOperationIDAndNewerPendingWork() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("inventory.json")
+        var store = try Inventory(file: file)
+        let seed = LostItemReport(id: UUID(), name: "Torque wrench", lastSeen: "bench", photo: nil, foundAt: nil)
+        let crew = InterruptedClosureCrew(report: seed)
+        try await store.sync(using: crew)
+        try store.markFound(reportID: seed.id, foundAt: "locker 2")
+        let changeID = try XCTUnwrap(store.pendingChanges.first?.id)
+        do {
+            try await store.sync(using: crew)
+            XCTFail("Expected a dropped acknowledgment")
+        } catch FakeCrewFailure.droppedAcknowledgment {}
+        store = try Inventory(file: file)
+        XCTAssertEqual(store.pendingChanges.first?.id, changeID)
+        let reopened = store
+        await crew.onNextFetch {
+            _ = try reopened.reportMissing(name: "Cable", lastSeen: "hatch", photo: nil)
+        }
+        try await store.sync(using: crew)
+        let ids = await crew.sentIDs
+        XCTAssertEqual(ids, [changeID, changeID])
+        XCTAssertEqual(store.lostReports.first { $0.id == seed.id }?.foundAt, "locker 2")
+        XCTAssertTrue(store.closureNotices.isEmpty)
+        XCTAssertEqual(store.pendingChanges.map(\.kind), [.reportMissing])
+        XCTAssertTrue(store.lostReports.contains { $0.name == "Cable" })
+    }
+
     func testRetryReusesChangeIDAndSnapshotPreservesLaterPendingWork() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

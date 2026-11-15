@@ -20,6 +20,12 @@ The service prints a pairing string. Share the full string privately with the tw
 2. Connect an iPhone, enable Developer Mode if prompted, select it as the run destination, and run the SpaceFind scheme. Repeat for the second iPhone. Use an Xcode version that supports running on each phone. The app's deployment target is iOS 16.
 3. Open SpaceFind, paste the laptop's pairing string, and tap **Join inventory**. Allow local network access when prompted. Both phones now use the same database.
 
+## Report a missing item
+
+Open **Lost items** and choose **Report a missing item**. Enter its name and where it was last seen. You can attach a photo even if the item has never been in inventory. When someone finds it, any joined crew member can open the report, enter where it was found, and choose **Mark as found**. The closed report keeps both locations.
+
+Offline reports show **Waiting to sync**. If two members mark the same report found while disconnected, both phones show the first found location the laptop accepts. For an existing crew, restart the updated laptop service using the same data directory before updating the phones.
+
 ## Rename an item
 
 Open the item, tap **Rename item**, enter the new label, and tap **Save**. Its photo, description, and recorded location stay with the item. You can search for the new label immediately on that phone. If you rename it offline, it shows **Waiting to sync**. Once both phones can reach the laptop with SpaceFind open, the other phone can find it by the new label too. If both crew members rename the same item, the last rename the laptop accepts sets the shared label.
@@ -41,7 +47,7 @@ Run `python3 -m unittest discover -s server -v` from the checkout to test the la
 python3 scripts/test_demo.py FIRST_SIMULATOR_UDID SECOND_SIMULATOR_UDID
 ```
 
-The rehearsal starts a disposable laptop database on loopback, adds a test image to each simulator's library, and exercises the real app and service together. Use the physical walkthrough above to check Wi-Fi reachability, camera capture, and local-network permissions aboard the demo network.
+The rehearsal starts a disposable laptop database on loopback, adds a test image to each simulator's library, and exercises the real app and service together. It then stops the service and checks that a crew member can still open a shared lost report and its photo. Use the physical walkthrough above to check Wi-Fi reachability, camera capture, and local-network permissions aboard the demo network.
 
 ### Verification on November 15, 2026
 

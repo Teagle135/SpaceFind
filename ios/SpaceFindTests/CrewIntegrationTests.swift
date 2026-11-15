@@ -4,6 +4,55 @@ import XCTest
 
 @MainActor
 final class CrewIntegrationTests: XCTestCase {
+    func testTwoCrewMembersCloseLostReportOffline() async throws {
+        guard let text = ProcessInfo.processInfo.environment["SPACEFIND_TEST_PAIRING"] else {
+            throw XCTSkip("Supply a pairing string for a disposable laptop database.")
+        }
+        let pairing = try Pairing(text)
+        let first = try await CrewService.join(pairing)
+        let second = try await CrewService.join(pairing)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("first.json")
+        var a = try Inventory(file: file)
+        let b = try Inventory(file: folder.appendingPathComponent("second.json"))
+        try await a.sync(using: first)
+        let originalItems = a.items
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 3, height: 3)).image { renderer in
+            UIColor.systemBlue.setFill()
+            renderer.fill(CGRect(x: 0, y: 0, width: 3, height: 3))
+        }
+        let jpeg = try XCTUnwrap(image.jpegData(compressionQuality: 0.8))
+        let id = try a.reportMissing(name: "Torque wrench", lastSeen: "beside the workbench", photo: jpeg)
+        try await a.sync(using: first)
+        try await b.sync(using: second)
+        XCTAssertEqual(b.lostReports.first { $0.id == id }?.photo, jpeg)
+
+        try a.markFound(reportID: id, foundAt: "tool bag")
+        let sibling = try a.reportMissing(name: "Torque wrench", lastSeen: "hatch", photo: nil)
+        try a.markFound(reportID: sibling, foundAt: "locker 3")
+        a = try Inventory(file: file)
+        XCTAssertTrue(a.isPending(sibling))
+        try b.markFound(reportID: id, foundAt: "locker 2")
+        try await b.sync(using: second)
+        try await a.sync(using: first)
+        try await b.sync(using: second)
+
+        for store in [a, b] {
+            let found = try XCTUnwrap(store.lostReports.first { $0.id == id })
+            XCTAssertEqual(found.lastSeen, "beside the workbench")
+            XCTAssertEqual(found.foundAt, "locker 2")
+            XCTAssertEqual(found.photo, jpeg)
+            let other = try XCTUnwrap(store.lostReports.first { $0.id == sibling })
+            XCTAssertEqual(other.foundAt, "locker 3")
+            XCTAssertNil(other.photo)
+            XCTAssertTrue(store.pendingChanges.isEmpty)
+            XCTAssertEqual(store.items, originalItems)
+        }
+        XCTAssertEqual(a.closureNotices[id], "locker 2")
+        XCTAssertNil(b.closureNotices[id])
+    }
+
     func testTwoClientsReconnectAndConfirmTheSamePhoto() async throws {
         guard let text = ProcessInfo.processInfo.environment["SPACEFIND_TEST_PAIRING"] else {
             throw XCTSkip("Supply a pairing string for a disposable laptop database.")
