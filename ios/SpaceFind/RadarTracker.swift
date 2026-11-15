@@ -16,17 +16,26 @@ struct RadarPathIntegrator {
     }
 
     private var headings: [Heading] = []
+    private struct Distance {
+        var total: Double
+        var time: TimeInterval
+    }
+    private var pendingDistances: [Distance] = []
     private var lastDistance = (total: 0.0, time: 0.0)
+    private var latestDistance = (total: 0.0, time: 0.0)
     private(set) var position = RadarPoint(x: 0, y: 0)
     private(set) var hasDistance = false
 
     init(startTime: TimeInterval = 0) {
         lastDistance.time = startTime
+        latestDistance.time = startTime
     }
 
     mutating func reset(startTime: TimeInterval) {
         headings.removeAll(keepingCapacity: true)
+        pendingDistances.removeAll(keepingCapacity: true)
         lastDistance = (0, startTime)
+        latestDistance = (0, startTime)
         position = RadarPoint(x: 0, y: 0)
         hasDistance = false
     }
@@ -41,24 +50,39 @@ struct RadarPathIntegrator {
         } else {
             headings.append(sample)
         }
+        processPendingDistances()
     }
 
     mutating func addDistanceSample(total: Double, timestamp: TimeInterval) {
-        guard total.isFinite, total >= 0, timestamp.isFinite, timestamp > lastDistance.time else { return }
+        guard total.isFinite, total >= 0, timestamp.isFinite, timestamp > latestDistance.time else { return }
+        pendingDistances.append(Distance(total: total, time: timestamp))
+        latestDistance = (total, timestamp)
+        processPendingDistances()
+    }
 
-        if total < lastDistance.total {
-            lastDistance = (total, timestamp)
-            retainHeadingBoundary(at: timestamp)
-            return
-        }
+    private mutating func processPendingDistances() {
+        var consumed = 0
+        while consumed < pendingDistances.count,
+              let latestHeadingTime = headings.last?.time,
+              latestHeadingTime >= pendingDistances[consumed].time {
+            let sample = pendingDistances[consumed]
+            if sample.total < lastDistance.total {
+                lastDistance = (sample.total, sample.time)
+                retainHeadingBoundary(at: sample.time)
+                consumed += 1
+                continue
+            }
 
-        let increment = total - lastDistance.total
-        if increment > 0, !headings.isEmpty {
-            integrate(increment, from: lastDistance.time, to: timestamp)
-            hasDistance = true
+            let increment = sample.total - lastDistance.total
+            if increment > 0, !headings.isEmpty {
+                integrate(increment, from: lastDistance.time, to: sample.time)
+                hasDistance = true
+            }
+            lastDistance = (sample.total, sample.time)
+            retainHeadingBoundary(at: sample.time)
+            consumed += 1
         }
-        lastDistance = (total, timestamp)
-        retainHeadingBoundary(at: timestamp)
+        if consumed > 0 { pendingDistances.removeFirst(consumed) }
     }
 
     private mutating func integrate(_ distance: Double, from start: TimeInterval, to end: TimeInterval) {
