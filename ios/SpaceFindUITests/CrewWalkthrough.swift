@@ -17,6 +17,14 @@ final class CrewWalkthrough: XCTestCase {
         search.typeText("Walkthrough")
         let row = app.buttons["item-" + item.uppercased()]
         XCTAssertTrue(row.waitForExistence(timeout: 8), app.debugDescription)
+        if environment["SPACEFIND_TEST_SECOND_PHONE"] == "1" {
+            XCTAssertTrue(row.label.localizedCaseInsensitiveContains("locker 2"))
+        } else {
+            XCTAssertTrue(row.label.contains("Needs confirmation"))
+            for candidate in ["locker 2", "tool bag"] {
+                XCTAssertFalse(row.label.localizedCaseInsensitiveContains(candidate))
+            }
+        }
         row.tap()
         if environment["SPACEFIND_TEST_SECOND_PHONE"] != "1" {
             let select = app.buttons["confirm-" + chosen.uppercased()]

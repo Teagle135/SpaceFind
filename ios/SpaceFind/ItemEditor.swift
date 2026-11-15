@@ -472,6 +472,7 @@ struct PhotoThumbnail: View {
     let data: Data?
     let accessibilityLabel: String
     let maximumPixelSize: Int
+    var cornerRadius: CGFloat = 12
 
     @State private var thumbnailData: Data?
 
@@ -493,7 +494,7 @@ struct PhotoThumbnail: View {
                 }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .accessibilityLabel(accessibilityLabel)
         .task(id: data) {
             thumbnailData = nil

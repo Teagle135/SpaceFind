@@ -59,6 +59,7 @@ private struct CrewRoot: View {
         }
         .sheet(isPresented: $reconnecting) { pairingForm }
         .task { if !ready && inventory == nil { restore() } }
+        .tint(CrewTheme.accent)
     }
 
     private var pairingForm: some View {
