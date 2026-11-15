@@ -207,12 +207,19 @@ def _ensure_certificate(data_dir, host_name):
             temporary = Path(temporary)
             temporary_cert = temporary / "cert.pem"
             temporary_key = temporary / "key.pem"
+            config = temporary / "openssl.cnf"
+            config.write_text(
+                f"[req]\nprompt = no\ndistinguished_name = dn\n"
+                f"x509_extensions = v3_req\n[dn]\nCN = {host_name}\n"
+                f"[v3_req]\nsubjectAltName = {san_type}:{san_value}\n",
+                encoding="ascii",
+            )
             subprocess.run(
                 [
                     "openssl", "req", "-x509", "-newkey", "rsa:2048", "-sha256",
                     "-days", "3650", "-nodes", "-keyout", str(temporary_key),
-                    "-out", str(temporary_cert), "-subj", f"/CN={host_name}",
-                    "-addext", f"subjectAltName={san_type}:{san_value}",
+                    "-out", str(temporary_cert), "-config", str(config),
+                    "-extensions", "v3_req",
                 ],
                 check=True,
                 stdout=subprocess.DEVNULL,
