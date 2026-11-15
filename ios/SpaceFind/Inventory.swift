@@ -14,8 +14,21 @@ struct Item: Codable, Equatable, Identifiable {
     var reports: [Report]
 }
 
+struct LostItemReport: Codable, Equatable, Identifiable {
+    let id: UUID
+    let name: String
+    let lastSeen: String
+    let photo: Data?
+    var foundAt: String?
+}
+
+struct CrewSnapshot: Decodable, Equatable {
+    let items: [Item]
+    let lostReports: [LostItemReport]
+}
+
 enum ChangeKind: String, Codable, Equatable {
-    case create, move, confirm, rename
+    case create, move, confirm, rename, reportMissing, markFound
 }
 
 struct Change: Codable, Identifiable, Equatable {
@@ -38,27 +51,34 @@ struct Change: Codable, Identifiable, Equatable {
 }
 
 protocol CrewAPI {
-    func fetch() async throws -> [Item]
+    func fetch() async throws -> CrewSnapshot
     func send(_ change: Change) async throws
 }
 
 enum CrewError: Error, LocalizedError {
     case staleConfirmation
+    case alreadyFound(foundAt: String)
 
     var errorDescription: String? {
-        "The inventory changed. Sync, then choose from the current reports."
+        switch self {
+        case .staleConfirmation: return "The inventory changed. Sync, then choose from the current reports."
+        case .alreadyFound(let foundAt): return "This report was already closed. Found at \(foundAt)."
+        }
     }
 }
 
 private enum InventoryError: LocalizedError {
-    case invalidRecord, invalidLabel, unknownItem, oversizedChange
+    case invalidRecord, invalidLabel, unknownItem, invalidLostReport, invalidFoundLocation, missingLostReport, oversizedChange
 
     var errorDescription: String? {
         switch self {
         case .invalidRecord: return "Add a label and location, then choose a photo no larger than 2 MiB."
+        case .invalidLostReport: return "Add an item name and last-seen location; a JPEG photo is optional (up to 2 MiB)."
+        case .invalidFoundLocation: return "Add a found-at location."
+        case .missingLostReport: return "This lost-item report is no longer available."
+        case .oversizedChange: return "The change is too large to sync. Shorten the text or choose a smaller photo."
         case .invalidLabel: return "Add a label."
         case .unknownItem: return "This item is no longer in the inventory."
-        case .oversizedChange: return "The entry is too large to sync. Shorten the text or choose a smaller photo."
         }
     }
 }
@@ -66,6 +86,8 @@ private enum InventoryError: LocalizedError {
 @MainActor
 final class Inventory: ObservableObject {
     @Published private(set) var items: [Item] = []
+    @Published private(set) var lostReports: [LostItemReport] = []
+    @Published private(set) var closureNotices: [UUID: String] = [:]
     private let file: URL
     private var state: Store
     private var syncTask: Task<Void, Error>?
@@ -77,12 +99,14 @@ final class Inventory: ObservableObject {
         if FileManager.default.fileExists(atPath: file.path) {
             state = try JSONDecoder().decode(Store.self, from: Data(contentsOf: file))
         } else {
-            state = Store(items: [], pending: [])
+            state = Store(items: [], pending: [], lostReports: [], closureNotices: [:])
             try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
                                                     withIntermediateDirectories: true)
             try JSONEncoder().encode(state).write(to: file, options: .atomic)
         }
         items = Self.display(state)
+        lostReports = Self.displayLostReports(state)
+        closureNotices = state.closureNotices
     }
 
     func create(label: String, description: String, location: String, photo: Data) throws {
@@ -131,6 +155,42 @@ final class Inventory: ObservableObject {
         try enqueue(change)
     }
 
+    @discardableResult
+    func reportMissing(name: String, lastSeen: String, photo: Data?) throws -> UUID {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lastSeen = lastSeen.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !lastSeen.isEmpty,
+              photo.map(Self.isValidJPEG) ?? true else { throw InventoryError.invalidLostReport }
+        let reportID = UUID()
+        let change = Change(id: UUID(), itemID: reportID, kind: .reportMissing, label: name,
+                            description: nil, parentID: nil, location: lastSeen, photo: photo,
+                            observedIDs: nil, chosenID: nil)
+        try enqueue(change)
+        return reportID
+    }
+
+    func markFound(reportID: UUID, foundAt: String) throws {
+        let foundAt = foundAt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !foundAt.isEmpty else { throw InventoryError.invalidFoundLocation }
+        guard let report = lostReports.first(where: { $0.id == reportID }) else {
+            throw InventoryError.missingLostReport
+        }
+        if let acceptedLocation = report.foundAt {
+            throw CrewError.alreadyFound(foundAt: acceptedLocation)
+        }
+        let change = Change(id: UUID(), itemID: reportID, kind: .markFound, label: nil,
+                            description: nil, parentID: nil, location: foundAt, photo: nil,
+                            observedIDs: nil, chosenID: nil)
+        try enqueue(change)
+    }
+
+    func dismissClosureNotice(reportID: UUID) {
+        guard state.closureNotices[reportID] != nil else { return }
+        var next = state
+        next.closureNotices.removeValue(forKey: reportID)
+        try? commit(next)
+    }
+
     func search(_ query: String) -> [Item] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return items }
@@ -165,20 +225,33 @@ final class Inventory: ObservableObject {
                 let snapshot = try await service.fetch()
                 var next = state
                 next.pending.removeAll(where: { $0.id == change.id })
-                next.items = snapshot
+                next.items = snapshot.items
+                next.lostReports = snapshot.lostReports
                 try commit(next)
                 throw CrewError.staleConfirmation
+            } catch CrewError.alreadyFound(let foundAt) where change.kind == .markFound {
+                var next = state
+                guard let index = next.lostReports.firstIndex(where: { $0.id == change.itemID }) else {
+                    throw InventoryError.missingLostReport
+                }
+                next.lostReports[index].foundAt = foundAt
+                next.pending.removeAll(where: { $0.id == change.id })
+                next.closureNotices[change.itemID] = foundAt
+                try commit(next)
+                continue
             }
             var next = state
             next.items = Self.apply(change, to: next.items)
+            next.lostReports = Self.apply(change, to: next.lostReports)
             next.pending.removeAll(where: { $0.id == change.id })
             try commit(next)
         }
         try Task.checkCancellation()
         let snapshot = try await service.fetch()
-        guard snapshot != state.items else { return }
+        guard snapshot.items != state.items || snapshot.lostReports != state.lostReports else { return }
         var next = state
-        next.items = snapshot
+        next.items = snapshot.items
+        next.lostReports = snapshot.lostReports
         try commit(next)
     }
 
@@ -195,14 +268,26 @@ final class Inventory: ObservableObject {
         try JSONEncoder().encode(next).write(to: file, options: .atomic)
         state = next
         items = Self.display(next)
+        lostReports = Self.displayLostReports(next)
+        closureNotices = next.closureNotices
     }
 
     private static func isPresent(_ value: String) -> Bool {
         !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private static func isValidJPEG(_ photo: Data) -> Bool {
+        (1...2 * 1024 * 1024).contains(photo.count)
+            && photo.starts(with: [0xff, 0xd8])
+            && photo.suffix(2) == Data([0xff, 0xd9])
+    }
+
     private static func display(_ store: Store) -> [Item] {
         store.pending.reduce(store.items) { apply($1, to: $0) }
+    }
+
+    private static func displayLostReports(_ store: Store) -> [LostItemReport] {
+        store.pending.reduce(store.lostReports) { apply($1, to: $0) }
     }
 
     private static func apply(_ change: Change, to source: [Item]) -> [Item] {
@@ -225,6 +310,8 @@ final class Inventory: ObservableObject {
                   Set(items[index].reports.map(\.id)) == Set(observedIDs),
                   let chosen = items[index].reports.first(where: { $0.id == chosenID }) else { return items }
             items[index].reports = [chosen]
+        case .reportMissing, .markFound:
+            break
         case .rename:
             guard let index = items.firstIndex(where: { $0.id == change.itemID }),
                   let label = change.label else { return items }
@@ -233,8 +320,51 @@ final class Inventory: ObservableObject {
         return items
     }
 
+    private static func apply(_ change: Change, to source: [LostItemReport]) -> [LostItemReport] {
+        var reports = source
+        switch change.kind {
+        case .reportMissing:
+            guard let name = change.label, let lastSeen = change.location else { return reports }
+            let foundAt = reports.first(where: { $0.id == change.itemID })?.foundAt
+            let report = LostItemReport(id: change.itemID, name: name, lastSeen: lastSeen,
+                                        photo: change.photo, foundAt: foundAt)
+            if let index = reports.firstIndex(where: { $0.id == change.itemID }) { reports[index] = report }
+            else { reports.append(report) }
+        case .markFound:
+            guard let index = reports.firstIndex(where: { $0.id == change.itemID }),
+                  let foundAt = change.location else { return reports }
+            reports[index].foundAt = foundAt
+        case .create, .move, .confirm, .rename:
+            break
+        }
+        return reports
+    }
+
     private struct Store: Codable {
         var items: [Item]
         var pending: [Change]
+        var lostReports: [LostItemReport]
+        var closureNotices: [UUID: String]
+
+        private enum CodingKeys: String, CodingKey {
+            case items, pending, lostReports, closureNotices
+        }
+
+        init(items: [Item], pending: [Change], lostReports: [LostItemReport], closureNotices: [UUID: String]) {
+            self.items = items
+            self.pending = pending
+            self.lostReports = lostReports
+            self.closureNotices = closureNotices
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            items = try container.decode([Item].self, forKey: .items)
+            pending = try container.decode([Change].self, forKey: .pending)
+            lostReports = try container.contains(.lostReports)
+                ? container.decode([LostItemReport].self, forKey: .lostReports) : []
+            closureNotices = try container.contains(.closureNotices)
+                ? container.decode([UUID: String].self, forKey: .closureNotices) : [:]
+        }
     }
 }

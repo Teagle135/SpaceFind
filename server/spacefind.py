@@ -34,9 +34,10 @@ class _DualStackThreadingHTTPServer(ThreadingHTTPServer):
 
 
 class HTTPProblem(Exception):
-    def __init__(self, status, message):
+    def __init__(self, status, message, body=None):
         self.status = status
         self.message = message
+        self.body = body
 
 
 def _uuid(value):
@@ -78,11 +79,14 @@ def _normalize_change(body):
         "create": {"id", "itemID", "kind", "label", "description", "location", "photo"},
         "move": {"id", "itemID", "kind", "parentID", "location", "photo"},
         "confirm": {"id", "itemID", "kind", "observedIDs", "chosenID"},
+        "reportMissing": {"id", "itemID", "kind", "label", "location", "photo"},
+        "markFound": {"id", "itemID", "kind", "location"},
         "rename": {"id", "itemID", "kind", "label"},
     }.get(kind)
     if fields is None or set(body) - fields:
         raise HTTPProblem(400, "invalid change")
-    if fields - set(body) - ({"description"} if kind == "create" else set()):
+    optional = {"description"} if kind == "create" else {"photo"} if kind == "reportMissing" else set()
+    if fields - set(body) - optional:
         raise HTTPProblem(400, "invalid change")
     change = {"id": _uuid(body["id"]), "itemID": _uuid(body["itemID"]), "kind": kind}
     if kind == "create":
@@ -94,6 +98,13 @@ def _normalize_change(body):
         )
         if not isinstance(change["description"], str):
             raise HTTPProblem(400, "description must be text")
+    elif kind == "reportMissing":
+        change.update(
+            label=_nonblank(body["label"], "label"),
+            location=_nonblank(body["location"], "location"),
+        )
+        if "photo" in body:
+            change["photo"] = _photo(body["photo"])
     elif kind == "move":
         change.update(
             parentID=_uuid(body["parentID"]),
@@ -111,9 +122,11 @@ def _normalize_change(body):
         if chosen not in observed:
             raise HTTPProblem(400, "chosenID must be observed")
         change.update(observedIDs=sorted(observed), chosenID=chosen)
-    else:
+    elif kind == "markFound":
+        change["location"] = _nonblank(body["location"], "location")
+    elif kind == "rename":
         change["label"] = _nonblank(body["label"], "label")
-    if kind in ("create", "move"):
+    if "photo" in change:
         change["photo"] = base64.b64encode(change["photo"]).decode("ascii")
     return change
 
@@ -157,6 +170,13 @@ def _initialize_db(db_path, invite):
             );
             CREATE INDEX IF NOT EXISTS reports_current
                 ON reports(item_id, active);
+            CREATE TABLE IF NOT EXISTS lost_reports (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                last_seen TEXT NOT NULL,
+                photo BLOB,
+                found_at TEXT
+            );
             CREATE TABLE IF NOT EXISTS changes (
                 id TEXT PRIMARY KEY,
                 payload_hash TEXT NOT NULL
@@ -270,8 +290,9 @@ def _change(db_path, body):
             return
 
         collision = db.execute(
-            "SELECT 1 FROM items WHERE id=? UNION SELECT 1 FROM reports WHERE id=?",
-            (change["id"], change["id"]),
+            "SELECT 1 FROM items WHERE id=? UNION SELECT 1 FROM reports WHERE id=? "
+            "UNION SELECT 1 FROM lost_reports WHERE id=?",
+            (change["id"], change["id"], change["id"]),
         ).fetchone()
         if collision:
             raise HTTPProblem(409, "change ID already used")
@@ -280,8 +301,8 @@ def _change(db_path, body):
         if change["kind"] == "create":
             if item_id == change["id"] or db.execute(
                 "SELECT 1 FROM items WHERE id=? UNION SELECT 1 FROM reports WHERE id=? "
-                "UNION SELECT 1 FROM changes WHERE id=?",
-                (item_id, item_id, item_id),
+                "UNION SELECT 1 FROM lost_reports WHERE id=? UNION SELECT 1 FROM changes WHERE id=?",
+                (item_id, item_id, item_id, item_id),
             ).fetchone():
                 raise HTTPProblem(409, "item ID already used")
             db.execute(
@@ -290,7 +311,7 @@ def _change(db_path, body):
             )
             parent_id = None
             location, photo = change["location"], base64.b64decode(change["photo"])
-        else:
+        elif change["kind"] in {"move", "confirm", "rename"}:
             if not db.execute("SELECT 1 FROM items WHERE id=?", (item_id,)).fetchone():
                 raise HTTPProblem(400, "unknown item")
             if change["kind"] == "move":
@@ -328,8 +349,32 @@ def _change(db_path, body):
                 )
             else:
                 db.execute("UPDATE items SET label=? WHERE id=?", (change["label"], item_id))
+        elif change["kind"] == "reportMissing":
+            if item_id == change["id"] or db.execute(
+                "SELECT 1 FROM items WHERE id=? UNION SELECT 1 FROM reports WHERE id=? "
+                "UNION SELECT 1 FROM lost_reports WHERE id=? UNION SELECT 1 FROM changes WHERE id=?",
+                (item_id, item_id, item_id, item_id),
+            ).fetchone():
+                raise HTTPProblem(409, "report ID already used")
+            photo = base64.b64decode(change["photo"]) if "photo" in change else None
+            db.execute(
+                "INSERT INTO lost_reports(id, name, last_seen, photo) VALUES(?, ?, ?, ?)",
+                (item_id, change["label"], change["location"], photo),
+            )
+        else:
+            report = db.execute(
+                "SELECT found_at FROM lost_reports WHERE id=?", (item_id,)
+            ).fetchone()
+            if report is None:
+                raise HTTPProblem(400, "unknown lost report")
+            if report["found_at"] is not None:
+                raise HTTPProblem(
+                    409, "report already found",
+                    {"code": "alreadyFound", "foundAt": report["found_at"]},
+                )
+            db.execute("UPDATE lost_reports SET found_at=? WHERE id=?", (change["location"], item_id))
 
-        if change["kind"] in ("create", "move"):
+        if change["kind"] in {"create", "move"}:
             db.execute(
                 "INSERT INTO reports(id, item_id, parent_id, location, photo, active) "
                 "VALUES(?, ?, ?, ?, ?, 1)",
@@ -417,7 +462,7 @@ def _handler(db_path, invite):
                 else:
                     raise HTTPProblem(404, "not found")
             except HTTPProblem as error:
-                self._json(error.status, {"error": error.message})
+                self._json(error.status, error.body if error.body is not None else {"error": error.message})
             except Exception:
                 logging.exception("SpaceFind request failed")
                 self._json(500, {"error": "internal error"})
@@ -451,10 +496,24 @@ def _handler(db_path, invite):
                             "description": item["description"],
                             "reports": reports,
                         })
+                    lost_reports = []
+                    for report in db.execute(
+                        "SELECT id, name, last_seen, photo, found_at FROM lost_reports ORDER BY id"
+                    ):
+                        value = {
+                            "id": report["id"],
+                            "name": report["name"],
+                            "lastSeen": report["last_seen"],
+                        }
+                        if report["photo"] is not None:
+                            value["photo"] = base64.b64encode(report["photo"]).decode("ascii")
+                        if report["found_at"] is not None:
+                            value["foundAt"] = report["found_at"]
+                        lost_reports.append(value)
                     db.commit()
-                self._json(200, {"items": items})
+                self._json(200, {"items": items, "lostReports": lost_reports})
             except HTTPProblem as error:
-                self._json(error.status, {"error": error.message})
+                self._json(error.status, error.body if error.body is not None else {"error": error.message})
             except Exception:
                 logging.exception("SpaceFind request failed")
                 self._json(500, {"error": "internal error"})

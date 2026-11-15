@@ -19,7 +19,7 @@ private struct CrewRoot: View {
     var body: some View {
         Group {
             if let inventory, let service {
-                InventoryView(inventory: inventory)
+                CrewWorkspace(inventory: inventory)
                     .safeAreaInset(edge: .bottom) {
                         if let message {
                             VStack(alignment: .leading, spacing: 2) {
@@ -48,7 +48,7 @@ private struct CrewRoot: View {
                             } catch {
                                 if Task.isCancelled { return }
                                 message = (error as? URLError) != nil
-                                    ? "Laptop unreachable. Showing the inventory saved on this iPhone."
+                                    ? "Laptop unreachable. Showing items and lost reports saved on this iPhone."
                                     : error.localizedDescription
                             }
                             do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
@@ -150,6 +150,43 @@ private struct CrewRoot: View {
             joinError = nil
             message = nil
         } catch { joinError = error.localizedDescription }
+    }
+}
+
+private struct CrewWorkspace: View {
+    @ObservedObject var inventory: Inventory
+
+    private var activeNotice: (id: UUID, name: String, location: String)? {
+        guard let id = inventory.closureNotices.keys.sorted(by: { $0.uuidString < $1.uuidString }).first,
+              let location = inventory.closureNotices[id] else { return nil }
+        let name = inventory.lostReports.first(where: { $0.id == id })?.name ?? "Lost item"
+        return (id, name, location)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let activeNotice {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("\(activeNotice.name) was already marked found at \(activeNotice.location).")
+                        .font(.footnote)
+                        .accessibilityIdentifier("closure-notice")
+                    Button("OK") {
+                        inventory.dismissClosureNotice(reportID: activeNotice.id)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.thinMaterial)
+            }
+            TabView {
+                InventoryView(inventory: inventory)
+                    .tabItem { Label("Inventory", systemImage: "shippingbox") }
+
+                LostItemsView(inventory: inventory)
+                    .tabItem { Label("Lost items", systemImage: "magnifyingglass") }
+            }
+        }
     }
 }
 
