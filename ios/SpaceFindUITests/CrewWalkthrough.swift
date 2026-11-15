@@ -184,6 +184,22 @@ final class CrewWalkthrough: XCTestCase {
         }
     }
 
+    @MainActor func testReadSharedPhotoWithLaptopOffline() throws {
+        guard let id = ProcessInfo.processInfo.environment["SPACEFIND_OFFLINE_REPORT_ID"] else {
+            throw XCTSkip("Requires the saved crew snapshot after the rehearsal laptop stops.")
+        }
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.buttons["Update connection"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Lost items"].tap()
+        let row = app.buttons["lost-report-" + id.uppercased()]
+        XCTAssertTrue(row.waitForExistence(timeout: 8), app.debugDescription)
+        row.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["Last seen, tool drawer"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any)["Photo of Walkthrough flashlight"].exists)
+    }
+
     @MainActor private func openInventory(_ pairing: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launch()
