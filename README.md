@@ -1,6 +1,6 @@
 # SpaceFind
 
-SpaceFind helps a crew find an item by its photo and last recorded location. Two iPhones share one inventory through a laptop on the same Wi-Fi. Joining, searching, and sharing work with the network's internet uplink disconnected.
+SpaceFind helps a crew find an item by its photo and last recorded location. Two iPhones share one inventory through a laptop on the same Wi-Fi. The laptop hosts the service locally.
 
 ## Start the laptop
 
@@ -48,4 +48,4 @@ The rehearsal starts a disposable laptop database on loopback, adds a test image
 - A crew member captured and saved “Camera check” at “Workbench” on the iPhone 16 and saw it on the iPhone 14 Plus. Both phones stored the same photo bytes and location as the laptop, with zero pending edits.
 - A crew member moved “Camera check” to “Red Pouch” offline and reopened SpaceFind on the disconnected iPhone 16. It still showed “Red Pouch” and **Waiting to sync**. After reconnection, both phones and the laptop stored that location and identical photo bytes. Both phone queues were empty.
 - After independent offline moves of “Camera check,” the crew saw both locations and selected “Locker 2.” Both iPhones and the laptop held the same replacement photo and confirmed location, with zero pending edits on either phone.
-- With the iPhone 16 connected by USB and the Mac and iPhone 14 Plus on an internet-connected hotspot, the 14 Plus received “Locker 3.” Its saved location and photo matched the laptop, and its edit queue was empty. Sharing over Wi-Fi with the internet uplink disconnected still needs a separate physical test.
+- With the iPhone 16 connected by USB and the Mac and iPhone 14 Plus on an internet-connected hotspot, the 14 Plus received “Locker 3.” Its saved location and photo matched the laptop, and its edit queue was empty. The physical test of sharing over Wi-Fi with the internet uplink disconnected is deferred.
