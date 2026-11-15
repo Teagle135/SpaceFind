@@ -156,6 +156,13 @@ final class CrewWalkthrough: XCTestCase {
             foundLocation.tap()
             foundLocation.typeText("locker 2")
             XCTAssertTrue(saveFound.isEnabled, app.debugDescription)
+            let titleBar = app.navigationBars["Mark as found"]
+            titleBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+            XCTAssertTrue(saveFound.isHittable, "Swiping down must preserve an entered found location.")
+            app.buttons["cancel-mark-found"].tap()
+            app.buttons["Keep editing"].tap()
+            XCTAssertEqual(foundLocation.value as? String, "locker 2")
             saveFound.tap()
 
             XCTAssertTrue(app.staticTexts["Found"].waitForExistence(timeout: 10), app.debugDescription)
