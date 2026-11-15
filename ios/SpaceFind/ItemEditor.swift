@@ -164,12 +164,8 @@ struct ItemEditor: View {
     @State private var description: String
     @State private var location: String
     @State private var selectedPhoto: Data?
-    @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var isLoadingPhoto = false
-    @State private var photoLoadID = UUID()
-    @State private var isShowingCamera = false
     @State private var editorError: String?
-    @State private var cameraAlert: CameraAlert?
 
     init(inventory: Inventory, original: Item?) {
         self.inventory = inventory
@@ -209,41 +205,7 @@ struct ItemEditor: View {
                         .accessibilityLabel("Item location")
                 }
 
-                Section("Photo") {
-                    if let selectedPhoto {
-                        PhotoThumbnail(
-                            data: selectedPhoto,
-                            accessibilityLabel: "Selected photo for \(label.isEmpty ? "item" : label)",
-                            maximumPixelSize: 640
-                        )
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 180)
-                        .accessibilityHidden(true)
-                    } else {
-                        Label("A photo is required", systemImage: "photo.badge.plus")
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if isLoadingPhoto {
-                        HStack(spacing: 10) {
-                            ProgressView()
-                            Text("Preparing photo…")
-                                .foregroundStyle(.secondary)
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-
-                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        Label("Choose from Library", systemImage: "photo.on.rectangle")
-                    }
-                    .accessibilityHint("Choose a photo from the library")
-
-                    Button {
-                        requestCamera()
-                    } label: {
-                        Label("Take Photo", systemImage: "camera")
-                    }
-                }
+                ItemPhotoSection(photo: $selectedPhoto, isLoading: $isLoadingPhoto, required: true)
 
                 if !isReadyToSave {
                     Section {
@@ -265,19 +227,6 @@ struct ItemEditor: View {
                         .disabled(!isReadyToSave)
                 }
             }
-            .onChange(of: selectedPhotoItem) { item in
-                let requestID = UUID()
-                photoLoadID = requestID
-                guard let item else {
-                    isLoadingPhoto = false
-                    return
-                }
-                Task { await loadPhoto(item, requestID: requestID) }
-            }
-            .sheet(isPresented: $isShowingCamera) {
-                CameraPicker(isPresented: $isShowingCamera, onImage: acceptCameraImage)
-                    .ignoresSafeArea()
-            }
             .alert("Unable to save", isPresented: Binding(
                 get: { editorError != nil },
                 set: { if !$0 { editorError = nil } }
@@ -285,21 +234,6 @@ struct ItemEditor: View {
                 Button("OK", role: .cancel) { editorError = nil }
             } message: {
                 Text(editorError ?? "Please try again.")
-            }
-            .alert(item: $cameraAlert) { alert in
-                if alert.canOpenSettings {
-                    return Alert(
-                        title: Text(alert.title),
-                        message: Text(alert.message),
-                        primaryButton: .default(Text("Open Settings"), action: openSettings),
-                        secondaryButton: .cancel(Text("OK"))
-                    )
-                }
-                return Alert(
-                    title: Text(alert.title),
-                    message: Text(alert.message),
-                    dismissButton: .default(Text("OK"))
-                )
             }
         }
     }
@@ -339,15 +273,104 @@ struct ItemEditor: View {
             editorError = error.localizedDescription
         }
     }
+}
+
+struct ItemPhotoSection: View {
+    @Binding var photo: Data?
+    @Binding var isLoading: Bool
+    let required: Bool
+
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var photoLoadID = UUID()
+    @State private var isShowingCamera = false
+    @State private var editorError: String?
+    @State private var cameraAlert: CameraAlert?
+
+    var body: some View {
+        Section("Photo") {
+            if let photo {
+                PhotoThumbnail(
+                    data: photo,
+                    accessibilityLabel: "Selected photo",
+                    maximumPixelSize: 640
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: 180)
+                .accessibilityHidden(true)
+            } else {
+                Label(
+                    required ? "A photo is required" : "No photo selected (optional)",
+                    systemImage: required ? "photo.badge.plus" : "photo"
+                )
+                .foregroundStyle(.secondary)
+            }
+
+            if isLoading {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Preparing photo…")
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+            }
+
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                Label("Choose from Library", systemImage: "photo.on.rectangle")
+            }
+            .accessibilityHint("Choose a photo from the library")
+
+            Button {
+                requestCamera()
+            } label: {
+                Label("Take Photo", systemImage: "camera")
+            }
+        }
+        .onChange(of: selectedPhotoItem) { item in
+            let requestID = UUID()
+            photoLoadID = requestID
+            guard let item else {
+                isLoading = false
+                return
+            }
+            Task { await loadPhoto(item, requestID: requestID) }
+        }
+        .sheet(isPresented: $isShowingCamera) {
+            CameraPicker(isPresented: $isShowingCamera, onImage: acceptCameraImage)
+                .ignoresSafeArea()
+        }
+        .alert("Unable to prepare photo", isPresented: Binding(
+            get: { editorError != nil },
+            set: { if !$0 { editorError = nil } }
+        )) {
+            Button("OK", role: .cancel) { editorError = nil }
+        } message: {
+            Text(editorError ?? "Please try again.")
+        }
+        .alert(item: $cameraAlert) { alert in
+            if alert.canOpenSettings {
+                return Alert(
+                    title: Text(alert.title),
+                    message: Text(alert.message),
+                    primaryButton: .default(Text("Open Settings"), action: openSettings),
+                    secondaryButton: .cancel(Text("OK"))
+                )
+            }
+            return Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+    }
 
     private func loadPhoto(_ item: PhotosPickerItem, requestID: UUID) async {
         guard photoLoadID == requestID else { return }
-        isLoadingPhoto = true
+        isLoading = true
 
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else {
                 guard photoLoadID == requestID else { return }
-                isLoadingPhoto = false
+                isLoading = false
                 editorError = "The selected photo could not be read. Choose another photo."
                 return
             }
@@ -355,15 +378,15 @@ struct ItemEditor: View {
                 PhotoImage.normalizedJPEG(from: data)
             }.value
             guard photoLoadID == requestID else { return }
-            isLoadingPhoto = false
+            isLoading = false
             guard let normalized else {
                 editorError = "The photo could not be prepared. Choose another photo."
                 return
             }
-            selectedPhoto = normalized
+            photo = normalized
         } catch {
             guard photoLoadID == requestID else { return }
-            isLoadingPhoto = false
+            isLoading = false
             editorError = error.localizedDescription
         }
     }
@@ -372,19 +395,19 @@ struct ItemEditor: View {
         let requestID = UUID()
         photoLoadID = requestID
         guard let data = image.jpegData(compressionQuality: 0.92) else {
-            isLoadingPhoto = false
+            isLoading = false
             editorError = "The camera photo could not be read. Please try again."
             return
         }
-        isLoadingPhoto = true
+        isLoading = true
         Task {
             let normalized = await Task.detached(priority: .userInitiated) {
                 PhotoImage.normalizedJPEG(from: data)
             }.value
             guard photoLoadID == requestID else { return }
-            isLoadingPhoto = false
+            isLoading = false
             if let normalized {
-                selectedPhoto = normalized
+                photo = normalized
             } else {
                 editorError = "The photo could not be prepared. Please take another photo."
             }
