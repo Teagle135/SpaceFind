@@ -1,7 +1,7 @@
 import XCTest
 
 final class RadarWalkthrough: XCTestCase {
-    @MainActor func testRadarIsReachableAlongsideInventoryAndLostItems() throws {
+    @MainActor func testRadarHomeLinksToInventoryAndFinderHidesPhotoUntilStopped() throws {
         let env = ProcessInfo.processInfo.environment
         guard let pairing = env["SPACEFIND_TEST_PAIRING"],
               let target = env["SPACEFIND_TEST_RADAR_ITEM"] else {
@@ -9,7 +9,6 @@ final class RadarWalkthrough: XCTestCase {
         }
         continueAfterFailure = false
         let app = launchInventory(pairing)
-        let appearance = env["SPACEFIND_TEST_APPEARANCE"] ?? "system"
 
         let inventoryTab = app.tabBars.buttons["Inventory"]
         XCTAssertTrue(inventoryTab.waitForExistence(timeout: 15), app.debugDescription)
@@ -26,35 +25,87 @@ final class RadarWalkthrough: XCTestCase {
         XCTAssertTrue(radarTab.waitForExistence(timeout: 5), app.debugDescription)
         radarTab.tap()
         XCTAssertTrue(app.buttons["radar-start"].waitForExistence(timeout: 8), app.debugDescription)
+        let appearance = env["SPACEFIND_TEST_APPEARANCE"] ?? "system"
         attachScreenshot(named: "Radar home — \(appearance)", from: app)
 
-        let findTarget = app.buttons["Find a target"]
-        XCTAssertTrue(findTarget.waitForExistence(timeout: 5), app.debugDescription)
-        findTarget.tap()
+        let createInventory = app.buttons["Create inventory item"]
+        XCTAssertTrue(createInventory.waitForExistence(timeout: 8), app.debugDescription)
+        createInventory.tap()
+        XCTAssertTrue(app.navigationBars["Create inventory item"].waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(app.buttons["radar-capture"].waitForExistence(timeout: 5), app.debugDescription)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        let findInventory = app.buttons["Find inventory item"]
+        XCTAssertTrue(findInventory.waitForExistence(timeout: 5), app.debugDescription)
+        findInventory.tap()
+
+        let pickerSearch = app.searchFields.firstMatch
+        XCTAssertTrue(pickerSearch.waitForExistence(timeout: 5), app.debugDescription)
+        pickerSearch.tap()
+        pickerSearch.typeText("Radar walk fixture")
         let targetID = target.uppercased()
         let targetButton = app.buttons["radar-find-" + targetID]
-        XCTAssertTrue(targetButton.waitForExistence(timeout: 12), app.debugDescription)
-        if !targetButton.isHittable { app.swipeUp() }
-        XCTAssertTrue(targetButton.isHittable, app.debugDescription)
+        XCTAssertTrue(targetButton.waitForExistence(timeout: 8), app.debugDescription)
         targetButton.tap()
 
-        let status = app.descendants(matching: .any)
+        XCTAssertTrue(app.navigationBars["Radar walk fixture"].waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(app.descendants(matching: .any)
             .matching(identifier: "radar-finder-status").firstMatch
-        XCTAssertTrue(status.waitForExistence(timeout: 5), app.debugDescription)
-        XCTAssertFalse(app.buttons["radar-reveal-" + targetID].exists, app.debugDescription)
+            .waitForExistence(timeout: 8), app.debugDescription)
+        attachScreenshot(named: "Radar finder — \(appearance)", from: app)
         XCTAssertEqual(app.images.matching(NSPredicate(
             format: "label == %@", "Photo of Radar walk fixture")).count, 0, app.debugDescription)
-        attachScreenshot(named: "Radar finder — \(appearance)", from: app)
+        XCTAssertFalse(app.buttons["radar-reveal-" + targetID].exists, app.debugDescription)
+    }
 
-        inventoryTab.tap()
+    @MainActor func testInventorySearchFindsRadarItemAndOffersFinderLink() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let pairing = env["SPACEFIND_TEST_PAIRING"],
+              let target = env["SPACEFIND_TEST_RADAR_ITEM"] else {
+            throw XCTSkip("Run against the disposable radar walkthrough fixture.")
+        }
+        continueAfterFailure = false
+        let app = launchInventory(pairing)
+        let targetID = target.uppercased()
         let search = app.searchFields.firstMatch
-        XCTAssertTrue(search.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(search.waitForExistence(timeout: 15), app.debugDescription)
         search.tap()
         search.typeText("Radar walk fixture")
-        XCTAssertTrue(app.staticTexts["No matching items"].waitForExistence(timeout: 5), app.debugDescription)
-        XCTAssertFalse(app.buttons["item-" + targetID].exists, app.debugDescription)
+
+        let row = app.buttons["item-" + targetID]
+        XCTAssertTrue(row.waitForExistence(timeout: 8), app.debugDescription)
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Radar walk fixture"].waitForExistence(timeout: 5), app.debugDescription)
+
+        let findWithRadar = app.buttons["Find with Radar"]
+        XCTAssertTrue(findWithRadar.waitForExistence(timeout: 5), app.debugDescription)
+        findWithRadar.tap()
+        XCTAssertTrue(app.descendants(matching: .any)
+            .matching(identifier: "radar-finder-status").firstMatch
+            .waitForExistence(timeout: 8), app.debugDescription)
         XCTAssertEqual(app.images.matching(NSPredicate(
             format: "label == %@", "Photo of Radar walk fixture")).count, 0, app.debugDescription)
+        XCTAssertFalse(app.buttons["radar-reveal-" + targetID].exists, app.debugDescription)
+    }
+
+    @MainActor func testUnpositionedInventoryItemOffersRadarPositionRecording() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let pairing = env["SPACEFIND_TEST_PAIRING"],
+              let unpositioned = env["SPACEFIND_TEST_UNPOSITIONED_ITEM"] else {
+            throw XCTSkip("Run against the disposable unpositioned inventory fixture.")
+        }
+        continueAfterFailure = false
+        let app = launchInventory(pairing)
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 15), app.debugDescription)
+        search.tap()
+        search.typeText("Radar ordinary fixture")
+
+        let row = app.buttons["item-" + unpositioned.uppercased()]
+        XCTAssertTrue(row.waitForExistence(timeout: 8), app.debugDescription)
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Radar ordinary fixture"].waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(app.buttons["Record radar position"].waitForExistence(timeout: 5), app.debugDescription)
     }
 
     @MainActor private func launchInventory(_ pairing: String) -> XCUIApplication {

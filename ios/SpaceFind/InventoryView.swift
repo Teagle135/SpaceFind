@@ -2,13 +2,14 @@ import SwiftUI
 
 struct InventoryView: View {
     @ObservedObject var inventory: Inventory
+    let tracker: RadarTracker
     @State private var query = ""
     @State private var isCreatingItem = false
 
     private var hasQuery: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
-        let results = inventory.search(query).filter { !$0.isRadarTarget }
+        let results = inventory.search(query)
 
         NavigationStack {
             List {
@@ -39,7 +40,7 @@ struct InventoryView: View {
                 } else {
                     ForEach(results, id: \.id) { item in
                         NavigationLink {
-                            ItemDetailView(inventory: inventory, itemID: item.id)
+                            ItemDetailView(inventory: inventory, tracker: tracker, itemID: item.id)
                         } label: {
                             InventoryRow(item: item, isPending: inventory.isPending(item.id))
                         }
@@ -58,7 +59,7 @@ struct InventoryView: View {
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
                         prompt: "Label, description, or location")
             .sheet(isPresented: $isCreatingItem) {
-                ItemEditor(inventory: inventory, original: nil)
+                ItemEditor(inventory: inventory, tracker: tracker, original: nil)
             }
         }
     }
@@ -144,7 +145,7 @@ private struct InventoryRow: View {
                     .font(.body)
                     .foregroundStyle(CrewTheme.ink)
             } else {
-                Text(displayedReport?.location ?? "Location not recorded")
+                Text(displayedReport?.displayLocation ?? "Location not recorded")
                     .font(.body)
                     .foregroundStyle(CrewTheme.ink)
                     .fixedSize(horizontal: false, vertical: true)

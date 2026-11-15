@@ -6,8 +6,6 @@ struct RadarTrialView: View {
     @ObservedObject var inventory: Inventory
     @ObservedObject var tracker: RadarTracker
 
-    @State private var hasStartedTracking = false
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -21,42 +19,13 @@ struct RadarTrialView: View {
 
                     RadarStatusRow(status: tracker.status, hasPosition: tracker.position != nil)
 
-                    Button {
-                        hasStartedTracking = true
-                        tracker.start()
-                    } label: {
-                        Label(hasStartedTracking || tracker.status != "Stopped"
-                              ? "Restart at MacBook" : "Start radar at MacBook",
-                              systemImage: "scope")
-                            .font(.headline)
-                            .foregroundStyle(CrewTheme.surface)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .tint(CrewTheme.accent)
-                    .accessibilityIdentifier("radar-start")
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Shared start")
-                            .font(.headline)
-                            .foregroundStyle(CrewTheme.ink)
-                        Text("Use the same starting point beside a stationary MacBook on both phones. Hold each phone flat and screen-up, with its top edge aimed at the centre of the MacBook screen. As you walk, point each top edge in your direction of travel, especially when turning.")
-                            .font(.body)
-                            .foregroundStyle(CrewTheme.ink)
-                        Text("Stop walking and let the latest distance reading settle before taking a photo.")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(CrewTheme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    RadarStartButton(tracker: tracker)
 
                     VStack(spacing: 10) {
                         NavigationLink {
-                            RadarTrialCaptureView(inventory: inventory, tracker: tracker)
+                            RadarTrialCaptureView(inventory: inventory, tracker: tracker, original: nil)
                         } label: {
-                            Label("Capture a target", systemImage: "camera")
+                            Label("Create inventory item", systemImage: "camera")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -65,9 +34,9 @@ struct RadarTrialView: View {
                         .tint(CrewTheme.accent)
 
                         NavigationLink {
-                            RadarTrialFindView(inventory: inventory, tracker: tracker)
+                            RadarInventoryList(inventory: inventory, tracker: tracker)
                         } label: {
-                            Label("Find a target", systemImage: "dot.radiowaves.left.and.right")
+                            Label("Find inventory item", systemImage: "dot.radiowaves.left.and.right")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -84,6 +53,29 @@ struct RadarTrialView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .tint(CrewTheme.accent)
+    }
+}
+
+private struct RadarStartButton: View {
+    @ObservedObject var tracker: RadarTracker
+    @State private var hasStartedTracking = false
+
+    var body: some View {
+        Button {
+            hasStartedTracking = true
+            tracker.start()
+        } label: {
+            Label(hasStartedTracking || tracker.status != "Stopped"
+                  ? "Restart at MacBook" : "Start radar at MacBook",
+                  systemImage: "scope")
+                .font(.headline)
+                .foregroundStyle(CrewTheme.surface)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .tint(CrewTheme.accent)
+        .accessibilityIdentifier("radar-start")
     }
 }
 
@@ -109,7 +101,7 @@ private struct RadarStatusRow: View {
     }
 }
 
-private struct RadarTrialCaptureView: View {
+struct RadarTrialCaptureView: View {
     @ObservedObject var inventory: Inventory
     @ObservedObject var tracker: RadarTracker
 
@@ -120,16 +112,35 @@ private struct RadarTrialCaptureView: View {
     @State private var savedItemID: UUID?
     @State private var targetName = ""
 
+    @State private var original: Item?
+    @State private var locationNote: String
+
+    init(inventory: Inventory, tracker: RadarTracker, original: Item?) {
+        self.inventory = inventory
+        self.tracker = tracker
+        _original = State(initialValue: original)
+        _locationNote = State(initialValue: original?.reports.first?.locationNote ?? "")
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 CrewWordmark()
                 RadarStatusRow(status: tracker.status, hasPosition: tracker.position != nil)
-                Text("The photo saves the current reading as its target point.")
+                Text("Taking a photo records this item’s radar position.")
                     .font(.body)
                     .foregroundStyle(.secondary)
                 positionReading
-                targetNameField
+                if tracker.position == nil {
+                    RadarStartButton(tracker: tracker)
+                }
+                if let original {
+                    Text(original.label).font(.headline)
+                } else {
+                    targetNameField
+                }
+                TextField("Location note (optional)", text: $locationNote)
+                    .textFieldStyle(.roundedBorder)
                 cameraButton
 
                 if let capture {
@@ -142,7 +153,7 @@ private struct RadarTrialCaptureView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(CrewTheme.surface.ignoresSafeArea())
-        .navigationTitle("Capture target")
+        .navigationTitle(original == nil ? "Create inventory item" : "Record radar position")
         .navigationBarTitleDisplayMode(.large)
         .fullScreenCover(isPresented: $isShowingCamera) {
             RadarTrialCamera(
@@ -183,13 +194,13 @@ private struct RadarTrialCaptureView: View {
 
     private var targetNameField: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Target name (optional)")
+            Text("Item name (optional)")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(CrewTheme.ink)
             TextField("e.g. Survey marker", text: $targetName)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.words)
-                .accessibilityLabel("Target name, optional")
+                .accessibilityLabel("Item name, optional")
         }
     }
 
@@ -197,7 +208,7 @@ private struct RadarTrialCaptureView: View {
         Button {
             openCamera()
         } label: {
-            Label(capture == nil ? "Take target photo" : "Retake photo", systemImage: "camera")
+            Label(capture == nil ? "Take item photo" : "Retake photo", systemImage: "camera")
                 .font(.headline)
                 .foregroundStyle(CrewTheme.surface)
                 .frame(maxWidth: .infinity)
@@ -221,7 +232,7 @@ private struct RadarTrialCaptureView: View {
                 .font(.body.monospacedDigit())
                 .foregroundStyle(CrewTheme.ink)
 
-            Button("Save target") { save(capture) }
+            Button(original == nil ? "Save inventory item" : "Save radar position") { save(capture) }
                 .foregroundStyle(CrewTheme.surface)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -283,10 +294,15 @@ private struct RadarTrialCaptureView: View {
             alertMessage = "This photo could not be prepared. Your capture is still here; retake it or try saving again."
             return
         }
-        let label = captureLabel
+        let label = original?.label ?? captureLabel
         do {
-            let itemID = try inventory.create(label: label, description: "Radar trial target",
-                                               location: capture.position.trialLocation, photo: photo)
+            let itemID = try inventory.saveRadarPhoto(for: original, label: label, locationNote: locationNote,
+                                                      photo: photo, at: capture.position)
+            if original != nil {
+                original = inventory.items.first { $0.id == itemID }
+            } else {
+                locationNote = ""
+            }
             self.capture = nil
             targetName = ""
             savedLabel = label
@@ -298,7 +314,7 @@ private struct RadarTrialCaptureView: View {
 
     private var captureLabel: String {
         let enteredName = targetName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return enteredName.isEmpty ? "Radar target \(UUID().uuidString.prefix(8))" : enteredName
+        return enteredName.isEmpty ? "Item \(UUID().uuidString.prefix(8))" : enteredName
     }
 }
 
@@ -307,23 +323,59 @@ private struct TrialCapture {
     let position: RadarPoint
 }
 
-private struct RadarTrialFindView: View {
+private struct RadarInventoryList: View {
     @ObservedObject var inventory: Inventory
-    @ObservedObject var tracker: RadarTracker
+    let tracker: RadarTracker
+    @State private var query = ""
 
-    @State private var selectedItemID: UUID?
-    @State private var stoppedPosition: RadarPoint?
-    @State private var hasStopped = false
-    @State private var revealedItemID: UUID?
-
-    private var radarTargets: [Item] { inventory.items.filter(\.isRadarTarget) }
-
-    private var selectedItem: Item? {
-        radarTargets.first { $0.id == selectedItemID }
+    var body: some View {
+        let results = inventory.search(query)
+        List {
+            ForEach(results) { item in
+                NavigationLink {
+                    RadarTrialFindView(inventory: inventory, tracker: tracker, itemID: item.id)
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.label).font(.headline)
+                        Text(summary(item))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier("radar-find-\(item.id.uuidString)")
+                .listRowBackground(CrewTheme.surface)
+            }
+            if results.isEmpty {
+                Text(inventory.items.isEmpty ? "Your inventory is empty" : "No matching items")
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(CrewTheme.surface)
+            }
+        }
+        .listStyle(.plain)
+        .searchable(text: $query, prompt: "Search inventory")
+        .scrollContentBackground(.hidden)
+        .background(CrewTheme.surface)
+        .navigationTitle("Find inventory item")
     }
 
+    private func summary(_ item: Item) -> String {
+        if item.reports.count > 1 { return "Needs confirmation" }
+        return item.reports.first?.radarPosition == nil ? "No radar position yet" : "Saved radar position"
+    }
+}
+
+struct RadarTrialFindView: View {
+    @ObservedObject var inventory: Inventory
+    @ObservedObject var tracker: RadarTracker
+    let itemID: UUID
+
+    @State private var stoppedPosition: RadarPoint?
+    @State private var photoRevealed = false
+
+    private var selectedItem: Item? { inventory.items.first { $0.id == itemID } }
+
     private var finderPosition: RadarPoint? {
-        hasStopped ? stoppedPosition : tracker.position
+        stoppedPosition ?? tracker.position
     }
 
     var body: some View {
@@ -334,78 +386,28 @@ private struct RadarTrialFindView: View {
                                prefix: "Radar status")
                     .accessibilityIdentifier("radar-finder-status")
 
-                if radarTargets.isEmpty {
-                    Text("Capture a radar target to make it available here.")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 8)
-                } else {
-                    Text("Choose a target")
-                        .font(.headline)
-                        .foregroundStyle(CrewTheme.ink)
-                    ForEach(radarTargets) { item in
-                        Button {
-                            if selectedItemID != item.id {
-                                stoppedPosition = nil
-                                hasStopped = false
-                                revealedItemID = nil
-                            }
-                            selectedItemID = item.id
-                        } label: {
-                            targetRow(item)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("radar-find-\(item.id.uuidString)")
-                    }
-                }
-
                 if let item = selectedItem {
                     selectedTarget(item)
+                } else {
+                    Text("This item is no longer available.")
                 }
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(CrewTheme.surface.ignoresSafeArea())
-        .navigationTitle("Find a target")
+        .navigationTitle(selectedItem?.label ?? "Find inventory item")
         .navigationBarTitleDisplayMode(.large)
         .onChange(of: tracker.status) { status in
             if status != "Stopped" {
                 stoppedPosition = nil
-                hasStopped = false
-                revealedItemID = nil
+                photoRevealed = false
             }
         }
-    }
-
-    private func targetRow(_ item: Item) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.label)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(CrewTheme.ink)
-                Text(targetSummary(item))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            if inventory.isPending(item.id) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Waiting to sync")
-            }
-            if selectedItemID == item.id {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(CrewTheme.accent)
-                    .accessibilityHidden(true)
-            }
+        .onChange(of: selectedItem?.reports.map(\.id)) { _ in
+            stoppedPosition = nil
+            photoRevealed = false
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(selectedItemID == item.id ? CrewTheme.accent.opacity(0.08) : CrewTheme.surface,
-                    in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(CrewTheme.divider, lineWidth: 1))
-        .contentShape(RoundedRectangle(cornerRadius: 12))
     }
 
     @ViewBuilder
@@ -418,24 +420,24 @@ private struct RadarTrialFindView: View {
             }
 
             if item.reports.count > 1 {
-                Text("Multiple reports make this target ambiguous. No radar position is shown.")
+                Text("Open this item in Inventory and confirm its location before using Radar.")
                     .foregroundStyle(.secondary)
             } else if let report = item.reports.first,
-                      let targetPosition = RadarPoint(trialLocation: report.location) {
+                      let targetPosition = report.radarPosition {
                 if let finderPosition {
                     RadarPlot(crew: finderPosition, target: targetPosition)
                 }
 
-                if hasStopped {
-                    Button(revealedItemID == item.id ? "Hide photo" : "Reveal photo") {
-                        revealedItemID = revealedItemID == item.id ? nil : item.id
+                if stoppedPosition != nil {
+                    Button(photoRevealed ? "Hide photo" : "Reveal photo") {
+                        photoRevealed.toggle()
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                     .tint(CrewTheme.accent)
                     .accessibilityIdentifier("radar-reveal-\(item.id.uuidString)")
 
-                    if revealedItemID == item.id, let image = UIImage(data: report.photo) {
+                    if photoRevealed, let image = UIImage(data: report.photo) {
                         Image(uiImage: image)
                             .resizable()
                             .scaledToFit()
@@ -449,7 +451,6 @@ private struct RadarTrialFindView: View {
                 } else if let position = tracker.position {
                     Button("Stop tracking here") {
                         stoppedPosition = position
-                        hasStopped = true
                         tracker.stop()
                     }
                     .foregroundStyle(CrewTheme.surface)
@@ -458,12 +459,18 @@ private struct RadarTrialFindView: View {
                     .tint(CrewTheme.accent)
                     .accessibilityIdentifier("radar-stop")
                 } else {
-                    Text("No finder position yet. Start radar at MacBook and wait for a reading before stopping here.")
+                    Text("Start at the MacBook and wait for a position reading.")
                         .foregroundStyle(.secondary)
+                    RadarStartButton(tracker: tracker)
                 }
             } else {
-                Text("No recognized radar position is available for this target. No dot is shown.")
+                Text("Photograph this item at its location to place it on Radar.")
                     .foregroundStyle(.secondary)
+                NavigationLink("Record radar position") {
+                    RadarTrialCaptureView(inventory: inventory, tracker: tracker, original: item)
+                }
+                .buttonStyle(.bordered)
+                .tint(CrewTheme.accent)
             }
         }
         .padding(14)
@@ -471,14 +478,5 @@ private struct RadarTrialFindView: View {
         .background(CrewTheme.surface, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(CrewTheme.divider, lineWidth: 1))
         .padding(.top, 4)
-    }
-
-    private func targetSummary(_ item: Item) -> String {
-        if item.reports.count > 1 { return "Needs confirmation" }
-        guard let report = item.reports.first,
-              RadarPoint(trialLocation: report.location) != nil else {
-            return "Radar position unavailable"
-        }
-        return inventory.isPending(item.id) ? "Valid position · waiting to sync" : "Saved radar position"
     }
 }

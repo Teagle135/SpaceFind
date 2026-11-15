@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct ItemDetailView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var inventory: Inventory
+    let tracker: RadarTracker
     let itemID: UUID
 
     @State private var editSession: EditSession?
@@ -35,8 +36,21 @@ struct ItemDetailView: View {
                             .accessibilityHidden(true)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                Label(report.location, systemImage: "mappin.and.ellipse")
+                                Label(report.displayLocation, systemImage: "mappin.and.ellipse")
                                     .font(.title3.weight(.semibold))
+                                if report.radarPosition != nil {
+                                    NavigationLink {
+                                        RadarTrialFindView(inventory: inventory, tracker: tracker, itemID: item.id)
+                                    } label: {
+                                        Label("Find with Radar", systemImage: "scope")
+                                    }
+                                }
+                                NavigationLink {
+                                    RadarTrialCaptureView(inventory: inventory, tracker: tracker, original: item)
+                                } label: {
+                                    Label(report.radarPosition == nil ? "Record radar position" : "Update radar position",
+                                          systemImage: "camera")
+                                }
                                 if inventory.isPending(item.id) {
                                     Label("Waiting to sync", systemImage: "arrow.triangle.2.circlepath")
                                         .font(.subheadline.weight(.medium))
@@ -99,7 +113,7 @@ struct ItemDetailView: View {
             }
         }
         .sheet(item: $editSession) { session in
-            ItemEditor(inventory: inventory, original: session.item)
+            ItemEditor(inventory: inventory, tracker: tracker, original: session.item)
         }
         .alert("Unable to save change", isPresented: Binding(
             get: { saveError != nil },
@@ -167,14 +181,14 @@ struct ItemDetailView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("confirm-\(report.id.uuidString)")
-        .accessibilityLabel("Keep \(report.location)")
+        .accessibilityLabel("Keep \(report.displayLocation)")
         .accessibilityHint("Confirms this location and its photo for \(item.label)")
     }
 
     private func conflictPhoto(_ report: Report) -> some View {
         PhotoThumbnail(
             data: report.photo,
-            accessibilityLabel: "Photo for \(report.location)",
+            accessibilityLabel: "Photo for \(report.displayLocation)",
             maximumPixelSize: 420,
             contentMode: .fit
         )
@@ -183,7 +197,7 @@ struct ItemDetailView: View {
 
     private func conflictDetails(_ report: Report) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(report.location)
+            Text(report.displayLocation)
                 .font(.headline)
                 .multilineTextAlignment(.leading)
                 .foregroundStyle(CrewTheme.ink)
@@ -216,27 +230,30 @@ struct ItemDetailView: View {
 struct ItemEditor: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var inventory: Inventory
+    let tracker: RadarTracker
 
     private let original: Item?
     @State private var label: String
     @State private var description: String
     @State private var location: String
+    @State private var radarPosition: RadarPoint?
     @State private var selectedPhoto: Data?
     @State private var isLoadingPhoto = false
     @State private var editorError: String?
 
-    init(inventory: Inventory, original: Item?) {
+    init(inventory: Inventory, tracker: RadarTracker, original: Item?) {
         self.inventory = inventory
+        self.tracker = tracker
         self.original = original
         _label = State(initialValue: original?.label ?? "")
         _description = State(initialValue: original?.description ?? "")
-        _location = State(initialValue: original?.reports.first?.location ?? "")
+        _location = State(initialValue: original?.reports.first?.locationNote ?? "")
         _selectedPhoto = State(initialValue: original?.reports.first?.photo)
     }
 
     private var isReadyToSave: Bool {
         !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        (radarPosition != nil || !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) &&
         selectedPhoto != nil && !isLoadingPhoto
     }
 
@@ -280,7 +297,8 @@ struct ItemEditor: View {
                 }
                 .listRowBackground(CrewTheme.surface)
 
-                ItemPhotoSection(photo: $selectedPhoto, isLoading: $isLoadingPhoto, required: true)
+                ItemPhotoSection(photo: $selectedPhoto, isLoading: $isLoadingPhoto, required: true,
+                                 tracker: tracker, radarPosition: $radarPosition)
                     .listRowBackground(CrewTheme.surface)
 
                 if !isReadyToSave {
@@ -323,6 +341,7 @@ struct ItemEditor: View {
         let cleanLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        let savedLocation = radarPosition?.trialLocation(keeping: cleanLocation) ?? cleanLocation
 
         guard let selectedPhoto else {
             editorError = "Choose or take a photo before saving."
@@ -338,14 +357,14 @@ struct ItemEditor: View {
                 try inventory.move(
                     itemID: original.id,
                     parentID: parent.id,
-                    location: cleanLocation,
+                    location: savedLocation,
                     photo: selectedPhoto
                 )
             } else {
                 try inventory.create(
                     label: cleanLabel,
                     description: cleanDescription,
-                    location: cleanLocation,
+                    location: savedLocation,
                     photo: selectedPhoto
                 )
             }
@@ -360,12 +379,24 @@ struct ItemPhotoSection: View {
     @Binding var photo: Data?
     @Binding var isLoading: Bool
     let required: Bool
+    let tracker: RadarTracker?
+    @Binding var radarPosition: RadarPoint?
 
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var photoLoadID = UUID()
     @State private var isShowingCamera = false
+    @State private var isShowingTrackedCamera = false
     @State private var editorError: String?
     @State private var cameraAlert: CameraAlert?
+
+    init(photo: Binding<Data?>, isLoading: Binding<Bool>, required: Bool,
+         tracker: RadarTracker? = nil, radarPosition: Binding<RadarPoint?> = .constant(nil)) {
+        _photo = photo
+        _isLoading = isLoading
+        self.required = required
+        self.tracker = tracker
+        _radarPosition = radarPosition
+    }
 
     var body: some View {
         Section("Photo") {
@@ -385,6 +416,12 @@ struct ItemPhotoSection: View {
                     systemImage: required ? "photo.badge.plus" : "photo"
                 )
                 .foregroundStyle(.secondary)
+            }
+
+            if radarPosition != nil {
+                Label("Radar position recorded", systemImage: "scope")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(CrewTheme.accent)
             }
 
             if isLoading {
@@ -417,8 +454,21 @@ struct ItemPhotoSection: View {
             Task { await loadPhoto(item, requestID: requestID) }
         }
         .sheet(isPresented: $isShowingCamera) {
-            CameraPicker(isPresented: $isShowingCamera, onImage: acceptCameraImage)
+            CameraPicker(isPresented: $isShowingCamera) { image in
+                acceptCameraImage(image)
+            }
                 .ignoresSafeArea()
+        }
+        .fullScreenCover(isPresented: $isShowingTrackedCamera) {
+            RadarTrialCamera(
+                position: { tracker?.position },
+                onCapture: { image, position in
+                    isShowingTrackedCamera = false
+                    acceptCameraImage(image, radarPosition: position)
+                },
+                onCancel: { isShowingTrackedCamera = false }
+            )
+            .ignoresSafeArea()
         }
         .alert("Unable to prepare photo", isPresented: Binding(
             get: { editorError != nil },
@@ -466,6 +516,7 @@ struct ItemPhotoSection: View {
                 return
             }
             photo = normalized
+            radarPosition = nil
         } catch {
             guard photoLoadID == requestID else { return }
             isLoading = false
@@ -473,7 +524,7 @@ struct ItemPhotoSection: View {
         }
     }
 
-    private func acceptCameraImage(_ image: UIImage) {
+    private func acceptCameraImage(_ image: UIImage, radarPosition capturedPosition: RadarPoint? = nil) {
         let requestID = UUID()
         photoLoadID = requestID
         guard let data = image.jpegData(compressionQuality: 0.92) else {
@@ -490,6 +541,7 @@ struct ItemPhotoSection: View {
             isLoading = false
             if let normalized {
                 photo = normalized
+                radarPosition = capturedPosition
             } else {
                 editorError = "The photo could not be prepared. Please take another photo."
             }
@@ -508,12 +560,12 @@ struct ItemPhotoSection: View {
 
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            isShowingCamera = true
+            openCamera()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 DispatchQueue.main.async {
                     if granted {
-                        isShowingCamera = true
+                        openCamera()
                     } else {
                         showCameraPermissionAlert()
                     }
@@ -523,6 +575,14 @@ struct ItemPhotoSection: View {
             showCameraPermissionAlert()
         @unknown default:
             showCameraPermissionAlert()
+        }
+    }
+
+    private func openCamera() {
+        if tracker?.position != nil {
+            isShowingTrackedCamera = true
+        } else {
+            isShowingCamera = true
         }
     }
 

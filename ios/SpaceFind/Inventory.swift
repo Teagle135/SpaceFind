@@ -199,7 +199,7 @@ final class Inventory: ObservableObject {
         return items.filter { item in
             item.label.localizedCaseInsensitiveContains(query)
                 || item.description.localizedCaseInsensitiveContains(query)
-                || item.reports.contains(where: { $0.location.localizedCaseInsensitiveContains(query) })
+                || item.reports.contains(where: { $0.displayLocation.localizedCaseInsensitiveContains(query) })
         }
     }
 

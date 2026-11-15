@@ -34,7 +34,9 @@ Open the item, tap **Rename item**, enter the new label, and tap **Save**. Its p
 
 Open **Radar** in the regular SpaceFind app on both phones. Start each phone at the same spot beside the stationary MacBook, held flat and screen up, with its top edge pointing toward the centre of the MacBook screen. Allow Motion & Fitness, wait for the ready status and keep SpaceFind open while walking.
 
-On the recording phone, choose **Capture a target**, stop at the destination and let the position estimate settle. Take a photo and save the target. SpaceFind records the phone’s estimated position when the shutter is pressed and shares it with the photo through the paired laptop. On the second phone, open **Find a target** and select the synced target. Follow the crew dot toward the photo-spot ring. The camera is needed only for taking the photo.
+Choose **Radar → Create inventory item** to photograph and save a new item. For an item already in Inventory, open its detail and tap **Record radar position** at its location. When Radar has a position, **Take Photo** in the regular Inventory editor also records it at the shutter. The photo and coordinates sync together on the same inventory item.
+
+On the finder phone, choose **Radar → Find inventory item** and select the item, or open it in **Inventory** and tap **Find with Radar**. Follow the filled crew dot toward the photo-spot ring. Items with only a written location need a radar photo before they can show a dot.
 
 For the walking trial, stop tracking and mark the finder’s stopping spot before revealing the photo. Measure the distance to the photographer’s standing spot with a tape. Record the results in the [three-walk scorecard](docs/radar-trial.md).
 

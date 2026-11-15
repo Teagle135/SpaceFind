@@ -181,7 +181,7 @@ private struct CrewWorkspace: View {
                 .background(.thinMaterial)
             }
             TabView {
-                InventoryView(inventory: inventory)
+                InventoryView(inventory: inventory, tracker: radarTracker)
                     .tabItem { Label("Inventory", systemImage: "shippingbox") }
 
                 LostItemsView(inventory: inventory)
