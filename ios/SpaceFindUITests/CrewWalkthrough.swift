@@ -116,6 +116,101 @@ final class CrewWalkthrough: XCTestCase {
         XCTAssertTrue(app.navigationBars[newLabel].waitForExistence(timeout: 5))
     }
 
+    @MainActor func testSharedLostItemWalkthrough() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let pairing = environment["SPACEFIND_TEST_PAIRING"],
+              let sharedItemID = environment["SPACEFIND_TEST_ITEM"] else {
+            throw XCTSkip("Requires the disposable crew from the demo rehearsal.")
+        }
+        continueAfterFailure = false
+        let app = openInventory(pairing)
+        let lostItemsTab = app.tabBars.buttons["Lost items"]
+        XCTAssertTrue(lostItemsTab.waitForExistence(timeout: 15), app.debugDescription)
+        lostItemsTab.tap()
+
+        // This name is shared by both phones and unique to this disposable rehearsal.
+        let name = "Walkthrough missing " + String(sharedItemID.prefix(8))
+        if environment["SPACEFIND_TEST_SECOND_PHONE"] == "1" {
+            let row = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", name)).firstMatch
+            XCTAssertTrue(row.waitForExistence(timeout: 20), app.debugDescription)
+            row.tap()
+
+            XCTAssertTrue(app.staticTexts["Missing"].waitForExistence(timeout: 10), app.debugDescription)
+            let markFound = app.buttons["mark-found-save"]
+            let openFoundForm = app.buttons["Mark as found"]
+            XCTAssertTrue(openFoundForm.waitForExistence(timeout: 8), app.debugDescription)
+            openFoundForm.tap()
+            XCTAssertTrue(markFound.waitForExistence(timeout: 8), app.debugDescription)
+            XCTAssertFalse(markFound.isEnabled, app.debugDescription)
+            app.buttons["cancel-mark-found"].tap()
+            XCTAssertTrue(app.staticTexts["Missing"].waitForExistence(timeout: 5), app.debugDescription)
+
+            app.buttons["Mark as found"].tap()
+            let foundLocation = app.descendants(matching: .any).matching(NSPredicate(
+                format: "label == %@ AND (elementType == %d OR elementType == %d)",
+                "Where did you find it?", XCUIElement.ElementType.textView.rawValue,
+                XCUIElement.ElementType.textField.rawValue)).firstMatch
+            XCTAssertTrue(foundLocation.waitForExistence(timeout: 8), app.debugDescription)
+            let saveFound = app.buttons["mark-found-save"]
+            XCTAssertFalse(saveFound.isEnabled, app.debugDescription)
+            foundLocation.tap()
+            foundLocation.typeText("locker 2")
+            XCTAssertTrue(saveFound.isEnabled, app.debugDescription)
+            saveFound.tap()
+
+            XCTAssertTrue(app.staticTexts["Found"].waitForExistence(timeout: 10), app.debugDescription)
+            let details = app.descendants(matching: .any)
+            XCTAssertTrue(details["Last seen, beside the workbench"].exists, app.debugDescription)
+            XCTAssertTrue(details["Found at, locker 2"].exists, app.debugDescription)
+        } else {
+            let add = app.buttons["Report a missing item"].firstMatch
+            XCTAssertTrue(add.waitForExistence(timeout: 8), app.debugDescription)
+            add.tap()
+
+            app.buttons["Choose from Library"].tap()
+            let cancelPicker = app.navigationBars["Photos"].buttons["Cancel"]
+            XCTAssertTrue(cancelPicker.waitForExistence(timeout: 8), app.debugDescription)
+            cancelPicker.tap()
+
+            let nameField = app.textFields["Item name"]
+            XCTAssertTrue(nameField.waitForExistence(timeout: 8), app.debugDescription)
+            nameField.tap()
+            nameField.typeText(name)
+            let lastSeenField = app.descendants(matching: .any).matching(NSPredicate(
+                format: "label == %@ AND (elementType == %d OR elementType == %d)",
+                "Where was it last seen?", XCUIElement.ElementType.textView.rawValue,
+                XCUIElement.ElementType.textField.rawValue)).firstMatch
+            lastSeenField.tap()
+            lastSeenField.typeText("beside the workbench")
+            let saveReport = app.buttons["Report missing item"]
+            XCTAssertTrue(saveReport.isEnabled, app.debugDescription)
+            saveReport.tap()
+
+            let reportRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", name)).firstMatch
+            XCTAssertTrue(reportRow.waitForExistence(timeout: 8), app.debugDescription)
+            let synced = XCTNSPredicateExpectation(predicate: NSPredicate(
+                format: "label CONTAINS[c] %@ AND NOT (label CONTAINS[c] %@)", name, "Waiting to sync"
+            ), object: reportRow)
+            XCTAssertEqual(XCTWaiter.wait(for: [synced], timeout: 20), .completed, app.debugDescription)
+        }
+    }
+
+    @MainActor func testReadSharedPhotoWithLaptopOffline() throws {
+        guard let id = ProcessInfo.processInfo.environment["SPACEFIND_OFFLINE_REPORT_ID"] else {
+            throw XCTSkip("Requires the saved crew snapshot after the rehearsal laptop stops.")
+        }
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.buttons["Update connection"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Lost items"].tap()
+        let row = app.buttons["lost-report-" + id.uppercased()]
+        XCTAssertTrue(row.waitForExistence(timeout: 8), app.debugDescription)
+        row.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["Last seen, tool drawer"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any)["Photo of Walkthrough flashlight"].exists)
+    }
+
     @MainActor private func openInventory(_ pairing: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launch()
