@@ -472,10 +472,11 @@ def create_server(data_dir, host=None, port=8443, host_name="localhost"):
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(cert_path, key_path)
     handler = _handler(db_path, invite)
+    bind_host = "0.0.0.0" if host is None else host
     if host is None and socket.has_dualstack_ipv6():
         server = _DualStackThreadingHTTPServer(("::", port), handler)
     else:
-        server = ThreadingHTTPServer((host or "0.0.0.0", port), handler)
+        server = ThreadingHTTPServer((bind_host, port), handler)
     server.daemon_threads = True
     server.socket = context.wrap_socket(server.socket, server_side=True)
     host_for_url = _normalized_url_host(host_name)
