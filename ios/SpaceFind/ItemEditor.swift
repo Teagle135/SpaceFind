@@ -9,7 +9,9 @@ struct ItemDetailView: View {
     let itemID: UUID
 
     @State private var editSession: EditSession?
-    @State private var confirmationError: String?
+    @State private var isRenaming = false
+    @State private var newLabel = ""
+    @State private var saveError: String?
 
     private var item: Item? { inventory.items.first { $0.id == itemID } }
 
@@ -53,6 +55,25 @@ struct ItemDetailView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
+
+                        Button {
+                            newLabel = item.label
+                            isRenaming = true
+                        } label: {
+                            Label("Rename item", systemImage: "pencil")
+                        }
+                        .alert("Rename item", isPresented: $isRenaming) {
+                            TextField("New label", text: $newLabel)
+                            Button("Cancel", role: .cancel) {}
+                            Button("Save") {
+                                do {
+                                    try inventory.rename(itemID: itemID, label: newLabel)
+                                } catch {
+                                    saveError = error.localizedDescription
+                                }
+                            }
+                            .disabled(newLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
                     }
                     .padding()
                 }
@@ -77,13 +98,13 @@ struct ItemDetailView: View {
         .sheet(item: $editSession) { session in
             ItemEditor(inventory: inventory, original: session.item)
         }
-        .alert("Unable to confirm location", isPresented: Binding(
-            get: { confirmationError != nil },
-            set: { if !$0 { confirmationError = nil } }
+        .alert("Unable to save change", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
         )) {
-            Button("OK", role: .cancel) { confirmationError = nil }
+            Button("OK", role: .cancel) { saveError = nil }
         } message: {
-            Text(confirmationError ?? "Please try again.")
+            Text(saveError ?? "Please try again.")
         }
     }
 
@@ -150,7 +171,7 @@ struct ItemDetailView: View {
                 chosenID: report.id
             )
         } catch {
-            confirmationError = error.localizedDescription
+            saveError = error.localizedDescription
         }
     }
 }
