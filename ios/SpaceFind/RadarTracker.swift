@@ -3,6 +3,7 @@ import CoreMotion
 import Foundation
 import UIKit
 
+/// Local coordinates in metres, with x right and y forward from the shared start.
 struct RadarPoint: Codable, Equatable {
     var x: Double
     var y: Double
@@ -47,6 +48,7 @@ struct RadarPathIntegrator {
 
         if total < lastDistance.total {
             lastDistance = (total, timestamp)
+            retainHeadingBoundary(at: timestamp)
             return
         }
 
@@ -61,6 +63,7 @@ struct RadarPathIntegrator {
 
     private mutating func integrate(_ distance: Double, from start: TimeInterval, to end: TimeInterval) {
         guard end > start else { return }
+        // Pedometer distance is batched, so assign each increment uniformly across elapsed time.
         let duration = end - start
         var heading = headings[0].radians
         var index = 0
