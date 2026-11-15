@@ -125,17 +125,16 @@ final class CrewService: CrewAPI {
         return CrewService(CrewCredentials(url: pairing.url, fingerprint: pairing.fingerprint, token: token))
     }
 
-    func fetch() async throws -> [Item] {
-        struct Reply: Decodable { let items: [Item] }
+    func fetch() async throws -> CrewSnapshot {
         let data = try await request("inventory")
-        return try JSONDecoder().decode(Reply.self, from: data).items
+        return try JSONDecoder().decode(CrewSnapshot.self, from: data)
     }
 
     func send(_ change: Change) async throws {
-        _ = try await request("changes", body: change.requestBody(), confirming: change.kind == .confirm)
+        _ = try await request("changes", body: change.requestBody(), kind: change.kind)
     }
 
-    private func request(_ path: String, body: Data? = nil, confirming: Bool = false) async throws -> Data {
+    private func request(_ path: String, body: Data? = nil, kind: ChangeKind? = nil) async throws -> Data {
         var request = URLRequest(url: credentials.url.appendingPathComponent(path))
         if !credentials.token.isEmpty {
             request.setValue("Bearer " + credentials.token, forHTTPHeaderField: "Authorization")
@@ -150,7 +149,15 @@ final class CrewService: CrewAPI {
         switch response.statusCode {
         case 200..<300: return data
         case 401, 403: throw ConnectionIssue.rejected
-        case 409 where confirming: throw CrewError.staleConfirmation
+        case 409 where kind == .confirm: throw CrewError.staleConfirmation
+        case 409 where kind == .markFound:
+            struct Conflict: Decodable { let code: String; let foundAt: String }
+            guard let conflict = try? JSONDecoder().decode(Conflict.self, from: data),
+                  conflict.code == "alreadyFound",
+                  !conflict.foundAt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw ConnectionIssue.invalidResponse
+            }
+            throw CrewError.alreadyFound(foundAt: conflict.foundAt)
         default: throw ConnectionIssue.invalidResponse
         }
     }
