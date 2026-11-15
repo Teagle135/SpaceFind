@@ -128,7 +128,8 @@ private struct LostItemDetailView: View {
                             PhotoThumbnail(
                                 data: photo,
                                 accessibilityLabel: "Photo of \(report.name)",
-                                maximumPixelSize: 1200
+                                maximumPixelSize: 1200,
+                                contentMode: .fit
                             )
                             .frame(maxWidth: .infinity)
                             .frame(height: 250)

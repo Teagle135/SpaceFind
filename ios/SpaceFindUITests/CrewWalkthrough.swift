@@ -17,10 +17,21 @@ final class CrewWalkthrough: XCTestCase {
         search.typeText("Walkthrough")
         let row = app.buttons["item-" + item.uppercased()]
         XCTAssertTrue(row.waitForExistence(timeout: 8), app.debugDescription)
+        if environment["SPACEFIND_TEST_SECOND_PHONE"] == "1" {
+            XCTAssertTrue(row.label.localizedCaseInsensitiveContains("locker 2"))
+        } else {
+            XCTAssertTrue(row.label.contains("Needs confirmation"))
+            for candidate in ["locker 2", "tool bag"] {
+                XCTAssertFalse(row.label.localizedCaseInsensitiveContains(candidate))
+            }
+        }
         row.tap()
         if environment["SPACEFIND_TEST_SECOND_PHONE"] != "1" {
             let select = app.buttons["confirm-" + chosen.uppercased()]
             XCTAssertTrue(select.waitForExistence(timeout: 6), app.debugDescription)
+            XCTAssertEqual(app.buttons.matching(
+                NSPredicate(format: "identifier BEGINSWITH %@", "confirm-")
+            ).count, 2)
             select.tap()
         }
         let edit = app.buttons["update-location"]
@@ -204,9 +215,14 @@ final class CrewWalkthrough: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let field = app.secureTextFields["pairing"]
-        if field.waitForExistence(timeout: 3) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            field.exists || app.searchFields.firstMatch.exists
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 20), .completed)
+        if field.exists {
             field.tap()
             field.typeText(pairing)
+            XCTAssertTrue(app.staticTexts["Pairing string"].exists)
             app.buttons["Join inventory"].tap()
         }
         return app
