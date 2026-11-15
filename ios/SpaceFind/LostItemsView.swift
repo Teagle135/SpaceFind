@@ -250,6 +250,7 @@ private struct FoundItemEditor: View {
 
     @State private var foundAt = ""
     @State private var editorError: String?
+    @State private var confirmingDiscard = false
 
     private var canSave: Bool { !foundAt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
@@ -267,11 +268,17 @@ private struct FoundItemEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .accessibilityIdentifier("cancel-mark-found")
+                    Button("Cancel") {
+                        if canSave {
+                            confirmingDiscard = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .accessibilityIdentifier("cancel-mark-found")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Mark as found", action: save)
+                    Button("Save location", action: save)
                         .accessibilityIdentifier("mark-found-save")
                         .disabled(!canSave)
                 }
@@ -284,6 +291,11 @@ private struct FoundItemEditor: View {
             } message: {
                 Text(editorError ?? "Please try again.")
             }
+        }
+        .interactiveDismissDisabled(canSave)
+        .alert("Discard the found location?", isPresented: $confirmingDiscard) {
+            Button("Keep editing", role: .cancel) {}
+            Button("Discard", role: .destructive) { dismiss() }
         }
     }
 
