@@ -67,6 +67,44 @@ final class CrewWalkthrough: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 8), app.debugDescription)
     }
 
+    @MainActor func testRenameIsSearchableOnBothPhones() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let pairing = environment["SPACEFIND_TEST_PAIRING"],
+              let item = environment["SPACEFIND_TEST_ITEM"] else {
+            throw XCTSkip("Requires the shared walkthrough item on two devices.")
+        }
+        continueAfterFailure = false
+        let app = openInventory(pairing)
+        let row = app.buttons["item-" + item.uppercased()]
+        let newLabel = "Walkthrough ratchet"
+        if environment["SPACEFIND_TEST_SECOND_PHONE"] != "1" {
+            XCTAssertTrue(row.waitForExistence(timeout: 15))
+            row.tap()
+            let rename = app.buttons["Rename item"]
+            XCTAssertTrue(rename.waitForExistence(timeout: 4), "An existing item needs a Rename item action")
+            rename.tap()
+            let field = app.textFields["New label"]
+            XCTAssertTrue(field.waitForExistence(timeout: 5))
+            let oldLabel = try XCTUnwrap(field.value as? String)
+            field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldLabel.count))
+            field.typeText(newLabel)
+            app.buttons["Save"].tap()
+            XCTAssertTrue(app.navigationBars[newLabel].waitForExistence(timeout: 5))
+            let synced = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                   object: app.staticTexts["Waiting to sync"])
+            XCTAssertEqual(XCTWaiter.wait(for: [synced], timeout: 15), .completed)
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+        }
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.tap()
+        search.typeText("ratchet")
+        XCTAssertTrue(row.waitForExistence(timeout: 15), "Search should find the same item ID under its new label")
+        row.tap()
+        XCTAssertTrue(app.navigationBars[newLabel].waitForExistence(timeout: 5))
+    }
+
     @MainActor private func openInventory(_ pairing: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launch()

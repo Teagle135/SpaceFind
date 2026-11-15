@@ -78,6 +78,7 @@ def _normalize_change(body):
         "create": {"id", "itemID", "kind", "label", "description", "location", "photo"},
         "move": {"id", "itemID", "kind", "parentID", "location", "photo"},
         "confirm": {"id", "itemID", "kind", "observedIDs", "chosenID"},
+        "rename": {"id", "itemID", "kind", "label"},
     }.get(kind)
     if fields is None or set(body) - fields:
         raise HTTPProblem(400, "invalid change")
@@ -99,7 +100,7 @@ def _normalize_change(body):
             location=_nonblank(body["location"], "location"),
             photo=_photo(body["photo"]),
         )
-    else:
+    elif kind == "confirm":
         observed = body["observedIDs"]
         if not isinstance(observed, list) or not observed:
             raise HTTPProblem(400, "observedIDs must be a nonempty array")
@@ -110,7 +111,9 @@ def _normalize_change(body):
         if chosen not in observed:
             raise HTTPProblem(400, "chosenID must be observed")
         change.update(observedIDs=sorted(observed), chosenID=chosen)
-    if kind != "confirm":
+    else:
+        change["label"] = _nonblank(body["label"], "label")
+    if kind in ("create", "move"):
         change["photo"] = base64.b64encode(change["photo"]).decode("ascii")
     return change
 
@@ -303,9 +306,7 @@ def _change(db_path, body):
                         (parent_id,),
                     )
                 location, photo = change["location"], base64.b64decode(change["photo"])
-            else:
-                parent_id = None
-                location = photo = None
+            elif change["kind"] == "confirm":
                 for report_id in change["observedIDs"]:
                     report = db.execute(
                         "SELECT item_id FROM reports WHERE id=?", (report_id,)
@@ -325,8 +326,10 @@ def _change(db_path, body):
                     "WHERE item_id=? AND active=1 AND id<>?",
                     (item_id, change["chosenID"]),
                 )
+            else:
+                db.execute("UPDATE items SET label=? WHERE id=?", (change["label"], item_id))
 
-        if change["kind"] != "confirm":
+        if change["kind"] in ("create", "move"):
             db.execute(
                 "INSERT INTO reports(id, item_id, parent_id, location, photo, active) "
                 "VALUES(?, ?, ?, ?, ?, 1)",
