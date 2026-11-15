@@ -37,3 +37,14 @@ The proposed light palette follows A’s near-white surface (#F9FBF9), charcoal 
 Matching system dark appearance, emphasizing location through contrast, and extending A to the supporting screens are proposed design decisions. The builder can tune exact sizes and adaptive colors for legibility on the supported iPhones. Use the existing SwiftUI views and iOS 16 deployment target. Keep the browser study’s sample equipment, simulated phone frame, status bar and home indicator out of the app layout. Use native controls and preserve VoiceOver labels, reading order, and existing UI-test identifiers.
 
 Review a populated list at default and accessibility text sizes in both appearances. Find the wrench and read its location without opening it. Try two items with the same name, a long location, a pending item, and a conflict. Check that candidate photos stay paired with their locations. Walk through joining, adding a photo, updating a location, and the existing offline and confirmation flows. Verify that Add item and the final list row remain reachable when the connection notice is visible.
+
+## Native previews
+
+Both iPhone 17 Pro simulator captures show the same inventory at the default text size. [Light appearance](photo-index/inventory-light-standard.png) · [Dark appearance](photo-index/inventory-dark-standard.png)
+
+The sample photos are resized or cropped in the inventory thumbnails.
+
+- Adjustable wrench by MrX. [Original photo](https://commons.wikimedia.org/wiki/File:Chrome_Vanadium_Adjustable_Wrench.jpg) · [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
+- Headlamp by Multimotyl (Jiří Dobrý). [Original photo](https://commons.wikimedia.org/wiki/File:Petzl_tikka_xp.jpg) · [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)
+- Locking pliers by Duk. [Original photo](https://commons.wikimedia.org/wiki/File:Locking_pliers.jpg) · [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
+- Tape measure by Klein Tools. [Original photo](https://commons.wikimedia.org/wiki/File:Tape_Measure_25%27_Klein_Tools.jpg) · [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
