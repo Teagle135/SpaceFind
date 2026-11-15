@@ -9,13 +9,13 @@ struct Report: Codable, Equatable, Identifiable {
 
 struct Item: Codable, Equatable, Identifiable {
     let id: UUID
-    let label: String
+    var label: String
     let description: String
     var reports: [Report]
 }
 
 enum ChangeKind: String, Codable, Equatable {
-    case create, move, confirm
+    case create, move, confirm, rename
 }
 
 struct Change: Codable, Identifiable, Equatable {
@@ -51,11 +51,13 @@ enum CrewError: Error, LocalizedError {
 }
 
 private enum InventoryError: LocalizedError {
-    case invalidRecord, oversizedChange
+    case invalidRecord, invalidLabel, unknownItem, oversizedChange
 
     var errorDescription: String? {
         switch self {
         case .invalidRecord: return "Add a label and location, then choose a photo no larger than 2 MiB."
+        case .invalidLabel: return "Add a label."
+        case .unknownItem: return "This item is no longer in the inventory."
         case .oversizedChange: return "The entry is too large to sync. Shorten the text or choose a smaller photo."
         }
     }
@@ -108,11 +110,19 @@ final class Inventory: ObservableObject {
         try enqueue(change)
     }
 
+    func rename(itemID: UUID, label: String) throws {
+        let label = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !label.isEmpty else { throw InventoryError.invalidLabel }
+        guard let item = items.first(where: { $0.id == itemID }) else { throw InventoryError.unknownItem }
+        guard item.label.trimmingCharacters(in: .whitespacesAndNewlines) != label else { return }
+        try enqueue(Change(id: UUID(), itemID: itemID, kind: .rename, label: label))
+    }
+
     func confirm(itemID: UUID, observedIDs: [UUID], chosenID: UUID) throws {
         guard let item = items.first(where: { $0.id == itemID }),
               Set(item.reports.map(\.id)) == Set(observedIDs),
               observedIDs.contains(chosenID),
-              !state.pending.contains(where: { $0.itemID == itemID }) else {
+              !state.pending.contains(where: { $0.itemID == itemID && $0.kind != .rename }) else {
             throw CrewError.staleConfirmation
         }
         let change = Change(id: UUID(), itemID: itemID, kind: .confirm, label: nil,
@@ -215,6 +225,10 @@ final class Inventory: ObservableObject {
                   Set(items[index].reports.map(\.id)) == Set(observedIDs),
                   let chosen = items[index].reports.first(where: { $0.id == chosenID }) else { return items }
             items[index].reports = [chosen]
+        case .rename:
+            guard let index = items.firstIndex(where: { $0.id == change.itemID }),
+                  let label = change.label else { return items }
+            items[index].label = label
         }
         return items
     }
