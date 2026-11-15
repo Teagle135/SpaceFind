@@ -5,6 +5,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ItemDetailView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var inventory: Inventory
     let itemID: UUID
 
@@ -26,7 +27,8 @@ struct ItemDetailView: View {
                             PhotoThumbnail(
                                 data: report.photo,
                                 accessibilityLabel: "Photo of \(item.label)",
-                                maximumPixelSize: 1200
+                                maximumPixelSize: 1200,
+                                contentMode: .fit
                             )
                             .frame(maxWidth: .infinity)
                             .frame(height: 250)
@@ -76,8 +78,9 @@ struct ItemDetailView: View {
                         }
                     }
                     .padding()
+                    .foregroundStyle(CrewTheme.ink)
                 }
-                .background(Color(uiColor: .systemGroupedBackground))
+                .background(CrewTheme.surface)
                 .navigationTitle(item.label)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -120,39 +123,7 @@ struct ItemDetailView: View {
                 .foregroundStyle(.secondary)
 
             ForEach(item.reports, id: \.id) { report in
-                Button {
-                    confirm(item: item, report: report)
-                } label: {
-                    HStack(spacing: 14) {
-                        PhotoThumbnail(
-                            data: report.photo,
-                            accessibilityLabel: "Photo for \(report.location)",
-                            maximumPixelSize: 420
-                        )
-                        .frame(width: 84, height: 84)
-                        .accessibilityHidden(true)
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(report.location)
-                                .font(.headline)
-                                .multilineTextAlignment(.leading)
-                                .foregroundStyle(.primary)
-                            Label("Keep this location", systemImage: "checkmark.circle")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.tint)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("confirm-\(report.id.uuidString)")
-                .accessibilityLabel("Keep \(report.location)")
-                .accessibilityHint("Confirms this location and its photo for \(item.label)")
+                conflictOption(report, for: item)
             }
 
             if inventory.isPending(item.id) {
@@ -161,6 +132,72 @@ struct ItemDetailView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func conflictOption(_ report: Report, for item: Item) -> some View {
+        Button {
+            confirm(item: item, report: report)
+        } label: {
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 12) {
+                        conflictPhoto(report)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 160)
+                        conflictDetails(report)
+                    }
+                } else {
+                    HStack(spacing: 14) {
+                        conflictPhoto(report)
+                            .frame(width: 84, height: 84)
+                        conflictDetails(report)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CrewTheme.surface)
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(CrewTheme.divider, lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("confirm-\(report.id.uuidString)")
+        .accessibilityLabel("Keep \(report.location)")
+        .accessibilityHint("Confirms this location and its photo for \(item.label)")
+    }
+
+    private func conflictPhoto(_ report: Report) -> some View {
+        PhotoThumbnail(
+            data: report.photo,
+            accessibilityLabel: "Photo for \(report.location)",
+            maximumPixelSize: 420,
+            contentMode: .fit
+        )
+        .accessibilityHidden(true)
+    }
+
+    private func conflictDetails(_ report: Report) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(report.location)
+                .font(.headline)
+                .multilineTextAlignment(.leading)
+                .foregroundStyle(CrewTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Label {
+                Text("Keep this location")
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "checkmark.circle")
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(CrewTheme.accent)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func confirm(item: Item, report: Report) {
@@ -212,30 +249,48 @@ struct ItemEditor: View {
             Form {
                 Section("Item") {
                     if original == nil {
-                        TextField("Label", text: $label)
-                            .textContentType(.name)
-                            .accessibilityLabel("Item label")
-                        TextField("Description (optional)", text: $description, axis: .vertical)
-                            .lineLimit(2...4)
-                            .accessibilityLabel("Description, optional")
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Label")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(CrewTheme.ink)
+                            TextField("Enter a label", text: $label)
+                                .textContentType(.name)
+                                .accessibilityLabel("Item label")
+                        }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Description (optional)")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(CrewTheme.ink)
+                            TextField("Add details", text: $description, axis: .vertical)
+                                .lineLimit(2...4)
+                                .accessibilityLabel("Description, optional")
+                        }
                     } else {
                         LabeledContent("Label", value: label)
                     }
                 }
+                .listRowBackground(CrewTheme.surface)
 
                 Section("Location") {
-                    TextField("Where is it?", text: $location, axis: .vertical)
-                        .lineLimit(2...4)
-                        .textInputAutocapitalization(.sentences)
-                        .accessibilityLabel("Item location")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Location")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(CrewTheme.ink)
+                        TextField("Where is it?", text: $location, axis: .vertical)
+                            .lineLimit(2...4)
+                            .textInputAutocapitalization(.sentences)
+                            .accessibilityLabel("Item location")
+                    }
                 }
+                .listRowBackground(CrewTheme.surface)
 
                 Section("Photo") {
                     if let selectedPhoto {
                         PhotoThumbnail(
                             data: selectedPhoto,
                             accessibilityLabel: "Selected photo for \(label.isEmpty ? "item" : label)",
-                            maximumPixelSize: 640
+                            maximumPixelSize: 640,
+                            contentMode: .fit
                         )
                         .frame(maxWidth: .infinity)
                         .frame(height: 180)
@@ -265,6 +320,7 @@ struct ItemEditor: View {
                         Label("Take Photo", systemImage: "camera")
                     }
                 }
+                .listRowBackground(CrewTheme.surface)
 
                 if !isReadyToSave {
                     Section {
@@ -272,10 +328,15 @@ struct ItemEditor: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+                    .listRowBackground(CrewTheme.surface)
                 }
             }
             .navigationTitle(original == nil ? "New Item" : "Update Location")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(CrewTheme.surface)
+            .foregroundStyle(CrewTheme.ink)
+            .tint(CrewTheme.accent)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -473,18 +534,20 @@ struct PhotoThumbnail: View {
     let accessibilityLabel: String
     let maximumPixelSize: Int
     var cornerRadius: CGFloat = 12
+    var contentMode: ContentMode = .fill
 
     @State private var thumbnailData: Data?
+    @State private var thumbnailSource: Data?
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
                 Color(uiColor: .secondarySystemGroupedBackground)
 
-                if let thumbnailData, let image = UIImage(data: thumbnailData) {
+                if thumbnailSource == data, let thumbnailData, let image = UIImage(data: thumbnailData) {
                     Image(uiImage: image)
                         .resizable()
-                        .scaledToFill()
+                        .aspectRatio(contentMode: contentMode)
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
                 } else {
@@ -498,12 +561,16 @@ struct PhotoThumbnail: View {
         .accessibilityLabel(accessibilityLabel)
         .task(id: data) {
             thumbnailData = nil
+            thumbnailSource = nil
             guard let data else { return }
             let maximumPixelSize = maximumPixelSize
             let result = await Task.detached(priority: .utility) {
                 PhotoImage.thumbnailJPEG(from: data, maximumPixelSize: maximumPixelSize)
             }.value
-            if !Task.isCancelled { thumbnailData = result }
+            if !Task.isCancelled {
+                thumbnailData = result
+                thumbnailSource = data
+            }
         }
     }
 }
