@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import sqlite3
+import socket
 import ssl
 import subprocess
 import tempfile
@@ -22,6 +23,14 @@ from pathlib import Path
 
 MAX_PHOTO = 2 * 1024 * 1024
 MAX_REQUEST = 3 * 1024 * 1024
+
+
+class _DualStackThreadingHTTPServer(ThreadingHTTPServer):
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
 
 
 class HTTPProblem(Exception):
@@ -450,7 +459,7 @@ def _handler(db_path, invite):
     return Handler
 
 
-def create_server(data_dir, host="0.0.0.0", port=8443, host_name="localhost"):
+def create_server(data_dir, host=None, port=8443, host_name="localhost"):
     data_dir = Path(data_dir)
     data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(data_dir, 0o700)
@@ -462,7 +471,11 @@ def create_server(data_dir, host="0.0.0.0", port=8443, host_name="localhost"):
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(cert_path, key_path)
-    server = ThreadingHTTPServer((host, port), _handler(db_path, invite))
+    handler = _handler(db_path, invite)
+    if host is None and socket.has_dualstack_ipv6():
+        server = _DualStackThreadingHTTPServer(("::", port), handler)
+    else:
+        server = ThreadingHTTPServer((host or "0.0.0.0", port), handler)
     server.daemon_threads = True
     server.socket = context.wrap_socket(server.socket, server_side=True)
     host_for_url = _normalized_url_host(host_name)
