@@ -69,11 +69,14 @@ def run():
             offline_test = "SpaceFindUITests/CrewWalkthrough/testReadSharedPhotoWithLaptopOffline"
             for index, device in enumerate(args.simulators):
                 subprocess.run(["xcrun", "simctl", "bootstatus", device, "-b"], check=True)
+                appearance = "dark" if index else "light"
+                subprocess.run(["xcrun", "simctl", "ui", device, "appearance", appearance], check=True)
                 subprocess.run(["xcrun", "simctl", "addmedia", device, folder / "swatch.jpg"], check=True)
                 env = dict(os.environ, TEST_RUNNER_SPACEFIND_TEST_PAIRING=server.pairing,
                            TEST_RUNNER_SPACEFIND_TEST_ITEM=item,
                            TEST_RUNNER_SPACEFIND_TEST_CHOSEN=chosen,
                            TEST_RUNNER_SPACEFIND_TEST_RADAR_ITEM=radar_item,
+                           TEST_RUNNER_SPACEFIND_TEST_APPEARANCE=appearance,
                            TEST_RUNNER_SPACEFIND_TEST_SECOND_PHONE=str(index))
                 command = ["xcodebuild", "test", "-project", "ios/SpaceFind.xcodeproj",
                            "-scheme", "SpaceFind", "-parallel-testing-enabled", "NO",
