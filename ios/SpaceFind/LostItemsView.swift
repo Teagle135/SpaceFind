@@ -33,6 +33,9 @@ struct LostItemsView: View {
                 }
             }
             .navigationTitle("Lost items")
+            .navigationDestination(for: UUID.self) { id in
+                LostItemDetailView(inventory: inventory, reportID: id)
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -49,9 +52,7 @@ struct LostItemsView: View {
     }
 
     private func reportLink(_ report: LostItemReport) -> some View {
-        NavigationLink {
-            LostItemDetailView(inventory: inventory, reportID: report.id)
-        } label: {
+        NavigationLink(value: report.id) {
             LostItemRow(report: report, isPending: inventory.isPending(report.id))
         }
         .accessibilityIdentifier("lost-report-\(report.id.uuidString)")
@@ -135,9 +136,13 @@ private struct LostItemDetailView: View {
 
                         LabeledContent("Last seen", value: report.lastSeen)
                             .font(.body)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Last seen, \(report.lastSeen)")
                         if let foundAt = report.foundAt {
                             LabeledContent("Found at", value: foundAt)
                                 .font(.body)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel("Found at, \(foundAt)")
                         }
 
                         if inventory.isPending(report.id) {
@@ -166,6 +171,9 @@ private struct LostItemDetailView: View {
         }
         .sheet(isPresented: $isMarkingFound) {
             FoundItemEditor(inventory: inventory, reportID: reportID)
+        }
+        .onChange(of: report?.foundAt) { location in
+            if location != nil { isMarkingFound = false }
         }
     }
 }
@@ -226,11 +234,7 @@ private struct MissingItemEditor: View {
 
     private func save() {
         do {
-            _ = try inventory.reportMissing(
-                name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                lastSeen: lastSeen.trimmingCharacters(in: .whitespacesAndNewlines),
-                photo: photo
-            )
+            try inventory.reportMissing(name: name, lastSeen: lastSeen, photo: photo)
             dismiss()
         } catch {
             editorError = error.localizedDescription
@@ -284,10 +288,7 @@ private struct FoundItemEditor: View {
 
     private func save() {
         do {
-            try inventory.markFound(
-                reportID: reportID,
-                foundAt: foundAt.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
+            try inventory.markFound(reportID: reportID, foundAt: foundAt)
             dismiss()
         } catch {
             editorError = error.localizedDescription
