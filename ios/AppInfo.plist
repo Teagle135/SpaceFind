@@ -6,5 +6,7 @@
     <string>Connect to the crew’s laptop to share item photos and locations over Wi-Fi.</string>
     <key>NSCameraUsageDescription</key>
     <string>Photograph an item or its storage location for the crew inventory.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>Use motion and walking distance to estimate positions during the trial.</string>
 </dict>
 </plist>
