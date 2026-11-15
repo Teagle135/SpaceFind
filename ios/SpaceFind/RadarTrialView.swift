@@ -28,6 +28,7 @@ struct RadarTrialView: View {
                             Label("Create inventory item", systemImage: "camera")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.large)
@@ -39,6 +40,7 @@ struct RadarTrialView: View {
                             Label("Find inventory item", systemImage: "dot.radiowaves.left.and.right")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.large)
