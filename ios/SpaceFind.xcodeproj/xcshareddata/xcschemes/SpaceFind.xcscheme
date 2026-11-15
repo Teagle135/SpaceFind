@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Scheme LastUpgradeVersion="2600" version="1.7">
+  <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
+    <BuildActionEntries>
+      <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
+        <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="3DFD285755DAC24EAB66606E" BuildableName="SpaceFind.app" BlueprintName="SpaceFind" ReferencedContainer="container:SpaceFind.xcodeproj" />
+      </BuildActionEntry>
+    </BuildActionEntries>
+  </BuildAction>
+  <TestAction buildConfiguration="Debug" shouldUseLaunchSchemeArgsEnv="YES">
+    <Testables>
+      <TestableReference skipped="NO">
+        <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="D6FFA226FBEB31DD6705CF17" BuildableName="SpaceFindTests.xctest" BlueprintName="SpaceFindTests" ReferencedContainer="container:SpaceFind.xcodeproj" />
+      </TestableReference>
+      <TestableReference skipped="NO">
+        <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="A6DEA97FBC6A043B22874840" BuildableName="SpaceFindUITests.xctest" BlueprintName="SpaceFindUITests" ReferencedContainer="container:SpaceFind.xcodeproj" />
+      </TestableReference>
+    </Testables>
+  </TestAction>
+  <LaunchAction buildConfiguration="Debug">
+    <BuildableProductRunnable runnableDebuggingMode="0">
+      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="3DFD285755DAC24EAB66606E" BuildableName="SpaceFind.app" BlueprintName="SpaceFind" ReferencedContainer="container:SpaceFind.xcodeproj" />
+    </BuildableProductRunnable>
+  </LaunchAction>
+  <ProfileAction buildConfiguration="Release">
+    <BuildableProductRunnable runnableDebuggingMode="0">
+      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="3DFD285755DAC24EAB66606E" BuildableName="SpaceFind.app" BlueprintName="SpaceFind" ReferencedContainer="container:SpaceFind.xcodeproj" />
+    </BuildableProductRunnable>
+  </ProfileAction>
+  <AnalyzeAction buildConfiguration="Debug" />
+  <ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES" />
+</Scheme>
