@@ -22,11 +22,21 @@ private struct CrewRoot: View {
                 InventoryView(inventory: inventory)
                     .safeAreaInset(edge: .bottom) {
                         if let message {
-                            VStack(spacing: 4) {
-                                Text(message).font(.footnote)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label(message, systemImage: "exclamationmark.circle")
+                                    .font(.footnote)
+                                    .fixedSize(horizontal: false, vertical: true)
                                 Button("Update connection") { reconnecting = true }
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(CrewTheme.accent)
+                                    .frame(minHeight: 44)
                             }
-                            .frame(maxWidth: .infinity).padding(8).background(.thinMaterial)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundStyle(CrewTheme.ink)
+                            .background(CrewTheme.surface)
+                            .overlay(alignment: .top) { Rectangle().fill(CrewTheme.divider).frame(height: 1) }
                         }
                     }
                     .task(id: phase) {
@@ -51,10 +61,12 @@ private struct CrewRoot: View {
                 VStack(spacing: 12) {
                     if let message {
                         Text(message)
-                        Button("Try again") { restore() }
+                        Button("Try again") { restore() }.buttonStyle(.borderedProminent)
                     } else { ProgressView("Opening inventory…") }
                 }
                 .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(CrewTheme.surface)
             }
         }
         .sheet(isPresented: $reconnecting) { pairingForm }
@@ -66,20 +78,38 @@ private struct CrewRoot: View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("Pairing string", text: $pairing).textInputAutocapitalization(.never)
-                        .autocorrectionDisabled().accessibilityIdentifier("pairing")
-                    Button(joining ? "Joining…" : "Join inventory") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Pairing string").font(.subheadline.weight(.semibold))
+                        SecureField("Paste pairing string", text: $pairing)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .accessibilityLabel("Pairing string")
+                            .accessibilityIdentifier("pairing")
+                    }
+                    Text("Connect to the laptop’s Wi-Fi, then paste the pairing string from your crew lead.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if let joinError {
+                        Label(joinError, systemImage: "exclamationmark.circle")
+                            .font(.subheadline)
+                    }
+                    Button {
                         joining = true
                         Task { await join() }
+                    } label: {
+                        Text(joining ? "Joining…" : "Join inventory")
+                            .font(.headline)
+                            .foregroundStyle(CrewTheme.surface)
+                            .frame(maxWidth: .infinity, minHeight: 32)
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(joining || pairing.isEmpty)
                 } header: {
                     Text("Crew invite")
-                } footer: {
-                    Text("Connect to the laptop’s Wi-Fi, then paste the pairing string from your crew lead.")
                 }
-                if let joinError { Text(joinError).foregroundStyle(.secondary) }
             }
+            .scrollContentBackground(.hidden)
+            .background(CrewTheme.surface)
             .navigationTitle("SpaceFind")
         }
     }
