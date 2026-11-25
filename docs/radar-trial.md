@@ -12,7 +12,7 @@ The finder tries to stop within **2.0 metres of where the photographer stood** u
    ```
 
 3. Paste the trial server's private pairing string into the trial app on each phone and join. Allow local network access and Motion & Fitness on both. Only the photographer needs camera permission.
-4. Mark one phone starting position beside the MacBook and mark a forward direction on the floor. On the **Radar** tab, tap **Start radar at MacBook** from that exact spot. Hold the phone flat, screen up, with its top edge along the floor mark. Wait for **Ready — waiting for first steps** before leaving. The two starts may happen at different times. Keep the app in the foreground throughout each walk. If tracking is interrupted or the crew dot stays frozen while walking, log the interruption and return to the origin to restart.
+4. Place a plain strip of tape at the shared starting spot in front of the stationary MacBook. On the **Radar** tab, tap **Start radar at MacBook** from that exact spot. Hold the phone flat, screen up, with its top edge pointing toward the centre of the MacBook screen. Wait for **Ready — waiting for first steps** before leaving. The two starts may happen at different times. Keep the app in the foreground throughout each walk. If tracking is interrupted or the crew dot stays frozen while walking, log the interruption and return to the origin to restart.
 
 ## Run one walk
 
@@ -25,7 +25,7 @@ The finder tries to stop within **2.0 metres of where the photographer stood** u
 
 | Walk | Photographer / finder | Route lengths and turns (both paths) | Radar estimate at stop | Tape measurement | Within 2.0 m? |
 | --- | --- | --- | --- | --- | --- |
-| 1 | | | | | Pending |
+| 1 | iPhone 16 / iPhone 14 Plus (assigned) | | | | Pending |
 | 2 | | | | | Pending |
 | 3 | | | | | Pending |
 
