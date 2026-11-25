@@ -17,6 +17,8 @@ The finder tries to stop within **2.0 metres of where the photographer stood** u
 
 ## Measurements
 
+Before the first walk, confirm that the selected item’s photo and recorded radar position appear on both the Mac and the finder phone. Measure the finder’s position separately during the walk.
+
 | Walk | Photographer / finder | Route lengths and turns (both paths) | Radar estimate at stop | Tape measurement | Within 2.0 m? |
 | --- | --- | --- | --- | --- | --- |
 | 1 | iPhone 16 / iPhone 14 Plus (assigned) | | | | Pending |
